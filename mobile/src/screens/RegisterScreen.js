@@ -9,30 +9,52 @@ export const RegisterScreen = ({ navigation }) => {
   const { register, loading } = useAuth();
   const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');
-  const [phone, setPhone] = useState('');
+  const [phone, setPhone] = useState('+91 ');
   const [password, setPassword] = useState('');
-  const [emergencyName, setEmergencyName] = useState('');
-  const [emergencyPhone, setEmergencyPhone] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [termsAccepted, setTermsAccepted] = useState(false);
   const [error, setError] = useState('');
 
+  // Password requirement flags
+  const hasLen = password.length >= 8;
+  const hasUpper = /[A-Z]/.test(password);
+  const hasLower = /[a-z]/.test(password);
+  const hasNum = /[0-9]/.test(password);
+  const hasSpec = /[!@#$%^&*()_+\-=\[\]{}|;:,.<>?]/.test(password);
+
   const handleRegister = async () => {
-    if (!fullName || !email || !password) {
-      setError('Please fill all required fields');
+    if (!fullName.trim() || !email.trim() || !password) {
+      setError('Please fill in all required fields (Name, Email, Password).');
       return;
     }
+    if (!termsAccepted) {
+      setError('You must accept the Terms of Service & Privacy Policy.');
+      return;
+    }
+    if (password !== confirmPassword) {
+      setError('Passwords do not match.');
+      return;
+    }
+    if (!hasLen || !hasUpper || !hasLower || !hasNum || !hasSpec) {
+      setError('Password does not meet all complexity requirements.');
+      return;
+    }
+
     setError('');
     const res = await register({
-      full_name: fullName,
-      email,
-      phone,
+      full_name: fullName.trim(),
+      email: email.trim(),
+      phone: phone.trim(),
       password,
-      emergency_contact_name: emergencyName,
-      emergency_contact_phone: emergencyPhone
+      confirm_password: confirmPassword,
+      terms_accepted: termsAccepted
     });
+
     if (res.success) {
-      navigation.navigate('MainTabs');
+      navigation.navigate('VerifyOtp', { dev_otp: res.dev_otp });
     } else {
-      setError(res.error || 'Registration failed');
+      setError(res.error || 'Registration failed.');
     }
   };
 
@@ -40,13 +62,17 @@ export const RegisterScreen = ({ navigation }) => {
     <ScrollView style={styles.container} contentContainerStyle={styles.scrollContent}>
       <Header
         title="Create Account"
-        subtitle="Set up your profile and primary emergency contact"
+        subtitle="Set up your SafeRoute account to start navigating safely"
         showBack
         onBack={() => navigation.goBack()}
       />
 
       <View style={styles.formCard}>
-        {error ? <Text style={styles.errorText}>{error}</Text> : null}
+        {error ? (
+          <View style={styles.errorBox}>
+            <Text style={styles.errorText}>{error}</Text>
+          </View>
+        ) : null}
 
         <View style={styles.inputGroup}>
           <Text style={styles.label}>Full Name *</Text>
@@ -54,7 +80,7 @@ export const RegisterScreen = ({ navigation }) => {
             style={styles.input}
             value={fullName}
             onChangeText={setFullName}
-            placeholder="Alex Rivera"
+            placeholder="e.g. Alex Rivera"
             placeholderTextColor={COLORS.textMuted}
           />
         </View>
@@ -65,7 +91,7 @@ export const RegisterScreen = ({ navigation }) => {
             style={styles.input}
             value={email}
             onChangeText={setEmail}
-            placeholder="alex@example.com"
+            placeholder="name@example.com"
             placeholderTextColor={COLORS.textMuted}
             keyboardType="email-address"
             autoCapitalize="none"
@@ -73,60 +99,79 @@ export const RegisterScreen = ({ navigation }) => {
         </View>
 
         <View style={styles.inputGroup}>
-          <Text style={styles.label}>Phone Number</Text>
+          <Text style={styles.label}>Mobile Number</Text>
           <TextInput
             style={styles.input}
             value={phone}
             onChangeText={setPhone}
-            placeholder="+1 (555) 019-2834"
+            placeholder="+91 9876543210"
             placeholderTextColor={COLORS.textMuted}
             keyboardType="phone-pad"
           />
         </View>
 
         <View style={styles.inputGroup}>
-          <Text style={styles.label}>Password *</Text>
-          <TextInput
-            style={styles.input}
-            value={password}
-            onChangeText={setPassword}
-            placeholder="Create password"
-            placeholderTextColor={COLORS.textMuted}
-            secureTextEntry
-          />
+          <Text style={styles.label}>Create Password *</Text>
+          <View style={styles.passwordWrapper}>
+            <TextInput
+              style={[styles.input, { flex: 1 }]}
+              value={password}
+              onChangeText={setPassword}
+              placeholder="Min. 8 characters"
+              placeholderTextColor={COLORS.textMuted}
+              secureTextEntry={!showPassword}
+            />
+            <TouchableOpacity onPress={() => setShowPassword(!showPassword)} style={styles.eyeBtn}>
+              <Text style={styles.eyeIcon}>{showPassword ? '🙈' : '👁️'}</Text>
+            </TouchableOpacity>
+          </View>
         </View>
 
-        <Text style={[styles.label, { marginTop: 12, color: COLORS.primaryLight }]}>
-          Emergency Contact (Optional)
-        </Text>
+        <!-- Dynamic Password Strength Checklist -->
+        <View style={styles.checklistCard}>
+          <Text style={[styles.reqItem, hasLen && styles.reqValid]}>{hasLen ? '✔' : '✖'} 8+ characters</Text>
+          <Text style={[styles.reqItem, hasUpper && styles.reqValid]}>{hasUpper ? '✔' : '✖'} At least 1 uppercase letter (A-Z)</Text>
+          <Text style={[styles.reqItem, hasLower && styles.reqValid]}>{hasLower ? '✔' : '✖'} At least 1 lowercase letter (a-z)</Text>
+          <Text style={[styles.reqItem, hasNum && styles.reqValid]}>{hasNum ? '✔' : '✖'} At least 1 number (0-9)</Text>
+          <Text style={[styles.reqItem, hasSpec && styles.reqValid]}>{hasSpec ? '✔' : '✖'} At least 1 special char (!@#$%^&*)</Text>
+        </View>
 
         <View style={styles.inputGroup}>
-          <Text style={styles.label}>Contact Name</Text>
+          <Text style={styles.label}>Confirm Password *</Text>
           <TextInput
             style={styles.input}
-            value={emergencyName}
-            onChangeText={setEmergencyName}
-            placeholder="Sarah Rivera (Parent)"
+            value={confirmPassword}
+            onChangeText={setConfirmPassword}
+            placeholder="Re-enter password"
             placeholderTextColor={COLORS.textMuted}
+            secureTextEntry={!showPassword}
           />
+          {confirmPassword ? (
+            <Text style={{ fontSize: 11, marginTop: 4, color: password === confirmPassword ? COLORS.safeGreen : COLORS.dangerRed }}>
+              {password === confirmPassword ? '✔ Passwords match' : '✖ Passwords do not match'}
+            </Text>
+          ) : null}
         </View>
 
-        <View style={styles.inputGroup}>
-          <Text style={styles.label}>Contact Phone</Text>
-          <TextInput
-            style={styles.input}
-            value={emergencyPhone}
-            onChangeText={setEmergencyPhone}
-            placeholder="+1 (555) 019-9988"
-            placeholderTextColor={COLORS.textMuted}
-            keyboardType="phone-pad"
-          />
-        </View>
+        <TouchableOpacity
+          style={styles.termsRow}
+          onPress={() => setTermsAccepted(!termsAccepted)}
+          activeOpacity={0.8}
+        >
+          <View style={[styles.checkbox, termsAccepted && styles.checkboxChecked]}>
+            {termsAccepted ? <Text style={styles.checkmark}>✓</Text> : null}
+          </View>
+          <Text style={styles.termsText}>
+            I agree to the <Text style={styles.termsLink}>Terms of Service</Text> & <Text style={styles.termsLink}>Privacy Policy</Text>.
+          </Text>
+        </TouchableOpacity>
 
         <Button
-          title="Create SafeRoute Account"
+          title="Create Account & Send Code ›"
           onPress={handleRegister}
           loading={loading}
+          disabled={loading}
+          variant="success"
           style={{ marginTop: 10 }}
         />
 
@@ -150,36 +195,108 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.surfaceCard,
     borderRadius: 16,
     padding: 20,
-    marginTop: 10,
+    marginTop: 16,
     borderWidth: 1,
     borderColor: COLORS.border
   },
+  errorBox: {
+    backgroundColor: 'rgba(239, 68, 68, 0.15)',
+    borderColor: COLORS.dangerRed,
+    borderWidth: 1,
+    borderRadius: 10,
+    padding: 10,
+    marginBottom: 14
+  },
+  errorText: {
+    color: '#FCA5A5',
+    fontSize: 12,
+    fontWeight: '600'
+  },
   inputGroup: {
-    marginBottom: 12
+    marginBottom: 14
   },
   label: {
     color: COLORS.textSecondary,
-    fontSize: 12,
-    fontWeight: '600',
-    marginBottom: 4
+    fontSize: 11,
+    fontWeight: '700',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+    marginBottom: 6
   },
   input: {
-    backgroundColor: COLORS.surfaceElevated,
-    color: COLORS.textPrimary,
-    borderRadius: 10,
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-    fontSize: 14,
+    backgroundColor: '#090E1A',
     borderWidth: 1,
-    borderColor: COLORS.border
+    borderColor: COLORS.border,
+    borderRadius: 10,
+    color: '#ffffff',
+    padding: 12,
+    fontSize: 14
   },
-  errorText: {
-    color: COLORS.dangerRed,
+  passwordWrapper: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    position: 'relative'
+  },
+  eyeBtn: {
+    position: 'absolute',
+    right: 12,
+    padding: 4
+  },
+  eyeIcon: {
+    fontSize: 16
+  },
+  checklistCard: {
+    backgroundColor: '#090E1A',
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    borderRadius: 10,
+    padding: 10,
+    marginBottom: 14
+  },
+  reqItem: {
+    fontSize: 11,
+    color: COLORS.textMuted,
+    marginBottom: 2
+  },
+  reqValid: {
+    color: COLORS.safeGreen,
+    fontWeight: '700'
+  },
+  termsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 16
+  },
+  checkbox: {
+    width: 20,
+    height: 20,
+    borderRadius: 4,
+    borderWidth: 1.5,
+    borderColor: COLORS.border,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 10
+  },
+  checkboxChecked: {
+    backgroundColor: COLORS.primary,
+    borderColor: COLORS.primary
+  },
+  checkmark: {
+    color: '#ffffff',
     fontSize: 12,
-    marginBottom: 10
+    fontWeight: '800'
+  },
+  termsText: {
+    color: COLORS.textSecondary,
+    fontSize: 12,
+    flex: 1
+  },
+  termsLink: {
+    color: COLORS.primaryLight,
+    fontWeight: '700'
   },
   linkRow: {
-    marginTop: 16,
+    marginTop: 20,
     alignItems: 'center'
   },
   linkText: {

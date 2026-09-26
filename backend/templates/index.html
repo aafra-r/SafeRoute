@@ -360,8 +360,9 @@
 </head>
 <body>
 
+  
   <!-- =========================================================
-       1. AUTHENTICATION GATEWAY OVERLAY
+       1. PRODUCTION AUTHENTICATION GATEWAY OVERLAY
        ========================================================= -->
   <div id="auth-gateway">
     <div class="auth-card">
@@ -369,53 +370,198 @@
       <h2 style="font-size: 24px; font-weight: 800; letter-spacing: -0.5px; color: #fff;">SafeRoute AI</h2>
       <p style="font-size: 13px; color: var(--text-muted); margin-top: 4px;">Human-Centered Real-Time Safe Navigation</p>
 
-      <!-- Auth Switcher Tabs -->
-      <div class="auth-tabs">
-        <button class="auth-tab-btn active" id="tab-auth-login" onclick="toggleAuthMode('login')">Sign In</button>
-        <button class="auth-tab-btn" id="tab-auth-register" onclick="toggleAuthMode('register')">Create Account</button>
+      <!-- Auth Tabs -->
+      <div class="auth-tabs" id="auth-main-tabs">
+        <button class="auth-tab-btn active" id="tab-auth-login" onclick="switchAuthForm('login')">Sign In</button>
+        <button class="auth-tab-btn" id="tab-auth-register" onclick="switchAuthForm('register')">Create Account</button>
       </div>
 
-      <!-- Sign In Form -->
+      <!-- Error Alert Box -->
+      <div id="auth-error-alert" style="display: none; background: rgba(239, 68, 68, 0.15); border: 1px solid var(--danger-red); color: #FCA5A5; font-size: 12px; padding: 10px 14px; border-radius: 12px; margin-bottom: 14px; text-align: left; font-weight: 600;"></div>
+      <div id="auth-success-alert" style="display: none; background: rgba(16, 185, 129, 0.15); border: 1px solid var(--safe-green); color: #6EE7B7; font-size: 12px; padding: 10px 14px; border-radius: 12px; margin-bottom: 14px; text-align: left; font-weight: 600;"></div>
+
+      <!-- 1. SIGN IN FORM -->
       <div id="auth-form-login">
         <div style="text-align: left; margin-bottom: 12px;">
-          <label class="input-label">EMAIL ADDRESS</label>
-          <input type="email" id="gateway-login-email" class="input-field" value="user@saferoute.app" placeholder="name@example.com">
+          <label class="input-label">EMAIL OR MOBILE NUMBER</label>
+          <input type="text" id="login-identifier" class="input-field" placeholder="e.g. name@example.com or +919876543210" autocomplete="username">
         </div>
 
-        <div style="text-align: left; margin-bottom: 18px;">
-          <label class="input-label">PASSWORD</label>
-          <input type="password" id="gateway-login-password" class="input-field" value="safe1234" placeholder="••••••••">
+        <div style="text-align: left; margin-bottom: 12px; position: relative;">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+            <label class="input-label" style="margin: 0;">PASSWORD</label>
+            <a href="javascript:void(0)" onclick="switchAuthForm('forgot')" style="font-size: 11px; color: var(--primary-light); text-decoration: none; font-weight: 700;">Forgot Password?</a>
+          </div>
+          <div style="position: relative;">
+            <input type="password" id="login-password" class="input-field" placeholder="••••••••" autocomplete="current-password">
+            <button type="button" onclick="togglePasswordVisibility('login-password', this)" style="position: absolute; right: 12px; top: 50%; transform: translateY(-50%); background: none; border: none; color: var(--text-muted); cursor: pointer; font-size: 14px;">👁️</button>
+          </div>
         </div>
 
-        <button class="btn" style="padding: 13px;" onclick="executeGatewayLogin()">Sign In to Navigation ›</button>
-        <button class="btn btn-warning" style="margin-top: 10px;" onclick="executeQuickDemoAuth()">⚡ 1-Click Instant Access</button>
+        <button class="btn" id="btn-login-submit" style="padding: 13px; margin-top: 6px;" onclick="handleLoginSubmit()">
+          <span id="login-btn-text">Sign In to Navigation ›</span>
+        </button>
+
+        <button class="btn btn-warning" style="margin-top: 10px; padding: 11px;" onclick="executeQuickDemoAuth()">⚡ 1-Click Guest Access</button>
       </div>
 
-      <!-- Register Form -->
+      <!-- 2. CREATE ACCOUNT FORM -->
       <div id="auth-form-register" style="display: none; text-align: left;">
         <div style="margin-bottom: 10px;">
-          <label class="input-label">FULL NAME</label>
-          <input type="text" id="gateway-reg-name" class="input-field" value="Alex Rivera" placeholder="Alex Rivera">
+          <label class="input-label">FULL NAME *</label>
+          <input type="text" id="reg-fullname" class="input-field" placeholder="e.g. Alex Rivera">
         </div>
 
         <div style="margin-bottom: 10px;">
-          <label class="input-label">EMAIL ADDRESS</label>
-          <input type="email" id="gateway-reg-email" class="input-field" value="alex@example.com" placeholder="alex@example.com">
+          <label class="input-label">EMAIL ADDRESS *</label>
+          <input type="email" id="reg-email" class="input-field" placeholder="name@example.com" autocomplete="email">
         </div>
 
         <div style="margin-bottom: 10px;">
-          <label class="input-label">PASSWORD</label>
-          <input type="password" id="gateway-reg-password" class="input-field" value="secret123" placeholder="••••••••">
+          <label class="input-label">MOBILE NUMBER</label>
+          <input type="tel" id="reg-phone" class="input-field" placeholder="+91 9876543210" value="+91 ">
         </div>
 
-        <div style="margin-bottom: 16px;">
-          <label class="input-label">TRUSTED EMERGENCY CONTACT PHONE</label>
-          <input type="text" id="gateway-reg-contact" class="input-field" value="+1 (555) 019-9988" placeholder="+1 (555) 000-0000">
+        <div style="margin-bottom: 10px; position: relative;">
+          <label class="input-label">CREATE PASSWORD *</label>
+          <div style="position: relative;">
+            <input type="password" id="reg-password" class="input-field" placeholder="Min. 8 characters" oninput="checkPasswordRequirements(this.value)" autocomplete="new-password">
+            <button type="button" onclick="togglePasswordVisibility('reg-password', this)" style="position: absolute; right: 12px; top: 50%; transform: translateY(-50%); background: none; border: none; color: var(--text-muted); cursor: pointer; font-size: 14px;">👁️</button>
+          </div>
         </div>
 
-        <button class="btn btn-success" style="padding: 13px;" onclick="executeGatewayRegister()">Create Account & Start ›</button>
+        <!-- Dynamic Password Strength Checklist -->
+        <div id="pwd-checklist" style="background: #090E1A; border: 1px solid var(--border); border-radius: 10px; padding: 10px; margin-bottom: 10px; font-size: 11px; color: var(--text-muted);">
+          <div id="pwd-req-length">✖ 8+ characters</div>
+          <div id="pwd-req-upper">✖ At least 1 uppercase letter (A-Z)</div>
+          <div id="pwd-req-lower">✖ At least 1 lowercase letter (a-z)</div>
+          <div id="pwd-req-number">✖ At least 1 number (0-9)</div>
+          <div id="pwd-req-special">✖ At least 1 special char (!@#$%^&*)</div>
+        </div>
+
+        <div style="margin-bottom: 12px; position: relative;">
+          <label class="input-label">CONFIRM PASSWORD *</label>
+          <div style="position: relative;">
+            <input type="password" id="reg-confirm-password" class="input-field" placeholder="Re-enter password" oninput="checkPasswordMatch()" autocomplete="new-password">
+            <button type="button" onclick="togglePasswordVisibility('reg-confirm-password', this)" style="position: absolute; right: 12px; top: 50%; transform: translateY(-50%); background: none; border: none; color: var(--text-muted); cursor: pointer; font-size: 14px;">👁️</button>
+          </div>
+          <div id="pwd-match-msg" style="font-size: 11px; margin-top: 3px; display: none;"></div>
+        </div>
+
+        <div style="display: flex; align-items: flex-start; gap: 8px; margin-bottom: 14px;">
+          <input type="checkbox" id="reg-terms" style="margin-top: 3px; cursor: pointer;">
+          <label for="reg-terms" style="font-size: 11.5px; color: var(--text-muted); line-height: 1.4; cursor: pointer;">
+            I agree to the <a href="javascript:void(0)" style="color: var(--primary-light);">Terms of Service</a> & <a href="javascript:void(0)" style="color: var(--primary-light);">Privacy Policy</a>.
+          </label>
+        </div>
+
+        <button class="btn btn-success" id="btn-reg-submit" style="padding: 13px;" onclick="handleRegisterSubmit()">
+          <span id="reg-btn-text">Create Account & Send Code ›</span>
+        </button>
       </div>
+
+      <!-- 3. ACCOUNT VERIFICATION FORM (OTP) -->
+      <div id="auth-form-verify" style="display: none; text-align: left;">
+        <div style="background: rgba(59, 130, 246, 0.12); border: 1px solid var(--primary); border-radius: 12px; padding: 12px; margin-bottom: 14px; font-size: 12px; color: #93C5FD;">
+          📲 A 6-digit verification code was sent to <b id="verify-target-display">your email</b>.
+        </div>
+
+        <div style="margin-bottom: 14px;">
+          <label class="input-label">ENTER 6-DIGIT VERIFICATION CODE</label>
+          <input type="text" id="verify-otp-input" class="input-field" placeholder="123456" maxlength="6" style="font-size: 22px; letter-spacing: 8px; text-align: center; font-weight: 800;">
+        </div>
+
+        <button class="btn btn-success" id="btn-verify-submit" style="padding: 13px;" onclick="handleVerifyOtpSubmit()">
+          <span id="verify-btn-text">Verify & Activate Account ›</span>
+        </button>
+
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 14px;">
+          <span id="resend-cooldown-text" style="font-size: 11.5px; color: var(--text-muted);">Resend code in 60s</span>
+          <button id="btn-resend-otp" class="btn btn-secondary" style="width: auto; padding: 6px 12px; font-size: 11px;" onclick="handleResendOtp()" disabled>Resend Code</button>
+        </div>
+      </div>
+
+      <!-- 4. FORGOT PASSWORD FORM -->
+      <div id="auth-form-forgot" style="display: none; text-align: left;">
+        <p style="font-size: 12px; color: var(--text-muted); margin-bottom: 14px;">
+          Enter your registered email address or mobile number below to receive a password reset OTP code.
+        </p>
+
+        <div style="margin-bottom: 14px;">
+          <label class="input-label">EMAIL OR MOBILE NUMBER</label>
+          <input type="text" id="forgot-identifier" class="input-field" placeholder="name@example.com or +919876543210">
+        </div>
+
+        <button class="btn" id="btn-forgot-submit" style="padding: 13px;" onclick="handleForgotSubmit()">
+          <span id="forgot-btn-text">Send Reset Code ›</span>
+        </button>
+
+        <button class="btn btn-secondary" style="margin-top: 10px; padding: 10px;" onclick="switchAuthForm('login')">‹ Back to Sign In</button>
+      </div>
+
+      <!-- 5. RESET PASSWORD FORM -->
+      <div id="auth-form-reset" style="display: none; text-align: left;">
+        <div style="margin-bottom: 10px;">
+          <label class="input-label">RESET OTP CODE</label>
+          <input type="text" id="reset-otp-input" class="input-field" placeholder="6-digit code" maxlength="6" style="text-align: center; font-size: 18px; font-weight: 800; letter-spacing: 4px;">
+        </div>
+
+        <div style="margin-bottom: 10px; position: relative;">
+          <label class="input-label">NEW PASSWORD</label>
+          <div style="position: relative;">
+            <input type="password" id="reset-new-password" class="input-field" placeholder="Min. 8 characters" autocomplete="new-password">
+            <button type="button" onclick="togglePasswordVisibility('reset-new-password', this)" style="position: absolute; right: 12px; top: 50%; transform: translateY(-50%); background: none; border: none; color: var(--text-muted); cursor: pointer; font-size: 14px;">👁️</button>
+          </div>
+        </div>
+
+        <div style="margin-bottom: 14px; position: relative;">
+          <label class="input-label">CONFIRM NEW PASSWORD</label>
+          <div style="position: relative;">
+            <input type="password" id="reset-confirm-password" class="input-field" placeholder="Re-enter new password" autocomplete="new-password">
+            <button type="button" onclick="togglePasswordVisibility('reset-confirm-password', this)" style="position: absolute; right: 12px; top: 50%; transform: translateY(-50%); background: none; border: none; color: var(--text-muted); cursor: pointer; font-size: 14px;">👁️</button>
+          </div>
+        </div>
+
+        <button class="btn btn-success" id="btn-reset-submit" style="padding: 13px;" onclick="handleResetPasswordSubmit()">
+          <span id="reset-btn-text">Update Password & Sign In ›</span>
+        </button>
+      </div>
+
+      <!-- 6. ONBOARDING / PROFILE SETUP MODAL -->
+      <div id="auth-form-onboarding" style="display: none; text-align: left;">
+        <div style="background: rgba(16, 185, 129, 0.12); border: 1px solid var(--safe-green); border-radius: 12px; padding: 12px; margin-bottom: 14px; font-size: 12px; color: #6EE7B7;">
+          🛡️ Account active! Set up your primary emergency contact for 1-click SOS alerts.
+        </div>
+
+        <div style="margin-bottom: 10px;">
+          <label class="input-label">EMERGENCY CONTACT NAME</label>
+          <input type="text" id="onboard-ec-name" class="input-field" placeholder="e.g. Ramesh Sharma">
+        </div>
+
+        <div style="display: flex; gap: 8px; margin-bottom: 14px;">
+          <div style="flex: 1;">
+            <label class="input-label">CONTACT PHONE</label>
+            <input type="tel" id="onboard-ec-phone" class="input-field" placeholder="+919876543210" value="+91 ">
+          </div>
+          <div style="flex: 1;">
+            <label class="input-label">RELATIONSHIP</label>
+            <select id="onboard-ec-rel" class="input-field" style="padding: 9.5px;">
+              <option value="Family">Family</option>
+              <option value="Friend">Friend</option>
+              <option value="Partner">Partner</option>
+              <option value="Colleague">Colleague</option>
+            </select>
+          </div>
+        </div>
+
+        <button class="btn btn-success" id="btn-onboard-submit" style="padding: 13px;" onclick="handleProfileSetupSubmit()">
+          <span id="onboard-btn-text">Save & Continue to Navigation ›</span>
+        </button>
+      </div>
+
     </div>
+  </div>
+
   </div>
 
   <!-- =========================================================
@@ -860,46 +1006,389 @@
     }
 
     // =========================================================
-    // AUTHENTICATION GATEWAY
+    // AUTHENTICATION GATEWAY (PRODUCTION)
     // =========================================================
-    function toggleAuthMode(mode) {
-      if (mode === 'login') {
+    
+    // Switch between forms
+    function switchAuthForm(formId) {
+      document.getElementById('auth-form-login').style.display = 'none';
+      document.getElementById('auth-form-register').style.display = 'none';
+      document.getElementById('auth-form-verify').style.display = 'none';
+      document.getElementById('auth-form-forgot').style.display = 'none';
+      document.getElementById('auth-form-reset').style.display = 'none';
+      document.getElementById('auth-form-onboarding').style.display = 'none';
+      
+      document.getElementById('auth-main-tabs').style.display = (formId === 'login' || formId === 'register') ? 'flex' : 'none';
+      
+      if (formId === 'login') {
         document.getElementById('tab-auth-login').classList.add('active');
         document.getElementById('tab-auth-register').classList.remove('active');
-        document.getElementById('auth-form-login').style.display = 'block';
-        document.getElementById('auth-form-register').style.display = 'none';
-      } else {
+      } else if (formId === 'register') {
         document.getElementById('tab-auth-register').classList.add('active');
         document.getElementById('tab-auth-login').classList.remove('active');
-        document.getElementById('auth-form-register').style.display = 'block';
-        document.getElementById('auth-form-login').style.display = 'none';
+      }
+      
+      document.getElementById('auth-form-' + formId).style.display = 'block';
+      hideAuthError();
+      hideAuthSuccess();
+    }
+
+    function showAuthError(msg) {
+      const err = document.getElementById('auth-error-alert');
+      err.textContent = '❌ ' + msg;
+      err.style.display = 'block';
+    }
+
+    function hideAuthError() {
+      document.getElementById('auth-error-alert').style.display = 'none';
+    }
+
+    function showAuthSuccess(msg) {
+      const succ = document.getElementById('auth-success-alert');
+      succ.textContent = '✅ ' + msg;
+      succ.style.display = 'block';
+    }
+
+    function hideAuthSuccess() {
+      document.getElementById('auth-success-alert').style.display = 'none';
+    }
+
+    function togglePasswordVisibility(inputId, btn) {
+      const input = document.getElementById(inputId);
+      if (input.type === 'password') {
+        input.type = 'text';
+        btn.textContent = '🙈';
+      } else {
+        input.type = 'password';
+        btn.textContent = '👁️';
       }
     }
 
-    function executeGatewayLogin() {
-      const email = document.getElementById('gateway-login-email').value || "user@saferoute.app";
-      document.getElementById('profile-name').textContent = "Alex Rivera";
-      document.getElementById('profile-email').textContent = email;
+    // Handlers
+    async function handleLoginSubmit() {
+      const identifier = document.getElementById('login-identifier').value.trim();
+      const password = document.getElementById('login-password').value;
+      const btn = document.getElementById('btn-login-submit');
+      const btnText = document.getElementById('login-btn-text');
+
+      if (!identifier || !password) {
+        return showAuthError('Please enter both email/mobile and password.');
+      }
+
+      btn.disabled = true;
+      btnText.textContent = 'Signing in...';
+      hideAuthError();
+
+      try {
+        const res = await fetch('/api/auth/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ identifier, password })
+        });
+        const data = await res.json();
+
+        if (!res.ok) {
+          if (res.status === 403 && data.requires_verification) {
+            // User needs to verify
+            document.getElementById('verify-target-display').textContent = identifier;
+            sessionStorage.setItem('pending_verify_identifier', identifier);
+            switchAuthForm('verify');
+            showAuthSuccess('A new verification code has been sent.');
+          } else {
+            showAuthError(data.error || 'Login failed');
+          }
+        } else {
+          // Success
+          localStorage.setItem('safepath_token', data.token);
+          localStorage.setItem('safepath_user', JSON.stringify(data.user));
+          completeLogin(data.user);
+        }
+      } catch (err) {
+        showAuthError('Network error. Please try again.');
+      } finally {
+        btn.disabled = false;
+        btnText.textContent = 'Sign In to Navigation ›';
+      }
+    }
+
+    function completeLogin(user) {
+      document.getElementById('profile-name').textContent = user.full_name || "User";
+      document.getElementById('profile-email').textContent = user.email || "";
       document.getElementById('auth-gateway').style.display = 'none';
     }
 
-    function executeQuickDemoAuth() {
-      document.getElementById('gateway-login-email').value = "alex@saferoute.app";
-      document.getElementById('gateway-login-password').value = "demo1234";
-      executeGatewayLogin();
+    async function executeQuickDemoAuth() {
+      document.getElementById('login-identifier').value = 'demo@saferoute.app';
+      document.getElementById('login-password').value = 'demo1234';
+      handleLoginSubmit();
     }
 
-    function executeGatewayRegister() {
-      const name = document.getElementById('gateway-reg-name').value || "Alex Rivera";
-      const email = document.getElementById('gateway-reg-email').value || "alex@example.com";
-      document.getElementById('profile-name').textContent = name;
-      document.getElementById('profile-email').textContent = email;
-      document.getElementById('auth-gateway').style.display = 'none';
+    function checkPasswordRequirements(pwd) {
+      document.getElementById('pwd-req-length').textContent = pwd.length >= 8 ? '✔ 8+ characters' : '✖ 8+ characters';
+      document.getElementById('pwd-req-length').style.color = pwd.length >= 8 ? '#10B981' : 'var(--text-muted)';
+      
+      const hasUpper = /[A-Z]/.test(pwd);
+      document.getElementById('pwd-req-upper').textContent = hasUpper ? '✔ At least 1 uppercase letter (A-Z)' : '✖ At least 1 uppercase letter (A-Z)';
+      document.getElementById('pwd-req-upper').style.color = hasUpper ? '#10B981' : 'var(--text-muted)';
+      
+      const hasLower = /[a-z]/.test(pwd);
+      document.getElementById('pwd-req-lower').textContent = hasLower ? '✔ At least 1 lowercase letter (a-z)' : '✖ At least 1 lowercase letter (a-z)';
+      document.getElementById('pwd-req-lower').style.color = hasLower ? '#10B981' : 'var(--text-muted)';
+      
+      const hasNum = /[0-9]/.test(pwd);
+      document.getElementById('pwd-req-number').textContent = hasNum ? '✔ At least 1 number (0-9)' : '✖ At least 1 number (0-9)';
+      document.getElementById('pwd-req-number').style.color = hasNum ? '#10B981' : 'var(--text-muted)';
+      
+      const hasSpec = /[!@#$%^&*(),.?":{}|<>]/.test(pwd);
+      document.getElementById('pwd-req-special').textContent = hasSpec ? '✔ At least 1 special char (!@#$%^&*)' : '✖ At least 1 special char (!@#$%^&*)';
+      document.getElementById('pwd-req-special').style.color = hasSpec ? '#10B981' : 'var(--text-muted)';
+      
+      checkPasswordMatch();
+    }
+
+    function checkPasswordMatch() {
+      const pwd = document.getElementById('reg-password').value;
+      const conf = document.getElementById('reg-confirm-password').value;
+      const msg = document.getElementById('pwd-match-msg');
+      if (conf.length > 0) {
+        msg.style.display = 'block';
+        if (pwd === conf) {
+          msg.textContent = '✔ Passwords match';
+          msg.style.color = '#10B981';
+        } else {
+          msg.textContent = '✖ Passwords do not match';
+          msg.style.color = '#EF4444';
+        }
+      } else {
+        msg.style.display = 'none';
+      }
+    }
+
+    async function handleRegisterSubmit() {
+      const full_name = document.getElementById('reg-fullname').value.trim();
+      const email = document.getElementById('reg-email').value.trim();
+      const phone = document.getElementById('reg-phone').value.trim();
+      const password = document.getElementById('reg-password').value;
+      const confirm = document.getElementById('reg-confirm-password').value;
+      const terms = document.getElementById('reg-terms').checked;
+
+      if (!full_name || !email || !password || !confirm) return showAuthError('Please fill all required fields.');
+      if (password !== confirm) return showAuthError('Passwords do not match.');
+      if (!terms) return showAuthError('You must agree to the Terms of Service.');
+
+      const btn = document.getElementById('btn-reg-submit');
+      btn.disabled = true;
+      document.getElementById('reg-btn-text').textContent = 'Creating Account...';
+      hideAuthError();
+
+      try {
+        const res = await fetch('/api/auth/register', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ full_name, email, phone, password })
+        });
+        const data = await res.json();
+
+        if (!res.ok) {
+          showAuthError(data.error || 'Registration failed');
+        } else {
+          document.getElementById('verify-target-display').textContent = email;
+          sessionStorage.setItem('pending_verify_identifier', email);
+          switchAuthForm('verify');
+          startResendCooldown();
+        }
+      } catch (err) {
+        showAuthError('Network error. Please try again.');
+      } finally {
+        btn.disabled = false;
+        document.getElementById('reg-btn-text').textContent = 'Create Account & Send Code ›';
+      }
+    }
+
+    let resendInterval;
+    function startResendCooldown() {
+      const btn = document.getElementById('btn-resend-otp');
+      const text = document.getElementById('resend-cooldown-text');
+      btn.disabled = true;
+      let left = 60;
+      
+      if (resendInterval) clearInterval(resendInterval);
+      resendInterval = setInterval(() => {
+        left--;
+        text.textContent = `Resend code in ${left}s`;
+        if (left <= 0) {
+          clearInterval(resendInterval);
+          btn.disabled = false;
+          text.textContent = 'Code didn\\'t arrive?';
+        }
+      }, 1000);
+    }
+
+    async function handleResendOtp() {
+      const identifier = sessionStorage.getItem('pending_verify_identifier');
+      if (!identifier) return;
+      
+      try {
+        const res = await fetch('/api/auth/resend-otp', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ identifier })
+        });
+        if (res.ok) {
+          showAuthSuccess('New code sent successfully.');
+          startResendCooldown();
+        } else {
+          const data = await res.json();
+          showAuthError(data.error || 'Failed to resend');
+        }
+      } catch (err) {
+        showAuthError('Network error');
+      }
+    }
+
+    async function handleVerifyOtpSubmit() {
+      const identifier = sessionStorage.getItem('pending_verify_identifier');
+      const otp_code = document.getElementById('verify-otp-input').value.trim();
+      if (!identifier || !otp_code) return showAuthError('Please enter the 6-digit code.');
+
+      const btn = document.getElementById('btn-verify-submit');
+      btn.disabled = true;
+      document.getElementById('verify-btn-text').textContent = 'Verifying...';
+      hideAuthError();
+
+      try {
+        const res = await fetch('/api/auth/verify-otp', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ identifier, otp_code })
+        });
+        const data = await res.json();
+
+        if (!res.ok) {
+          showAuthError(data.error || 'Verification failed');
+        } else {
+          localStorage.setItem('safepath_token', data.token);
+          localStorage.setItem('safepath_user', JSON.stringify(data.user));
+          if (data.user && !data.user.onboarding_completed) {
+            switchAuthForm('onboarding');
+          } else {
+            completeLogin(data.user);
+          }
+        }
+      } catch (err) {
+        showAuthError('Network error');
+      } finally {
+        btn.disabled = false;
+        document.getElementById('verify-btn-text').textContent = 'Verify & Activate Account ›';
+      }
+    }
+
+    async function handleForgotSubmit() {
+      const identifier = document.getElementById('forgot-identifier').value.trim();
+      if (!identifier) return showAuthError('Please enter your email or mobile.');
+      
+      const btn = document.getElementById('btn-forgot-submit');
+      btn.disabled = true;
+      document.getElementById('forgot-btn-text').textContent = 'Sending...';
+      
+      try {
+        const res = await fetch('/api/auth/forgot-password', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ identifier })
+        });
+        const data = await res.json();
+        
+        if (!res.ok) {
+          showAuthError(data.error || 'Failed to send reset code');
+        } else {
+          sessionStorage.setItem('pending_reset_identifier', identifier);
+          switchAuthForm('reset');
+          showAuthSuccess('Reset code sent to your email/mobile.');
+        }
+      } catch (err) {
+        showAuthError('Network error');
+      } finally {
+        btn.disabled = false;
+        document.getElementById('forgot-btn-text').textContent = 'Send Reset Code ›';
+      }
+    }
+
+    async function handleResetPasswordSubmit() {
+      const identifier = sessionStorage.getItem('pending_reset_identifier');
+      const reset_code = document.getElementById('reset-otp-input').value.trim();
+      const new_password = document.getElementById('reset-new-password').value;
+      const confirm_password = document.getElementById('reset-confirm-password').value;
+      
+      if (!reset_code || !new_password) return showAuthError('Please fill all fields');
+      if (new_password !== confirm_password) return showAuthError('Passwords do not match');
+      
+      const btn = document.getElementById('btn-reset-submit');
+      btn.disabled = true;
+      
+      try {
+        const res = await fetch('/api/auth/reset-password', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ identifier, reset_code, new_password })
+        });
+        const data = await res.json();
+        
+        if (!res.ok) {
+          showAuthError(data.error || 'Reset failed');
+        } else {
+          switchAuthForm('login');
+          showAuthSuccess('Password reset successfully. Please login.');
+        }
+      } catch (err) {
+        showAuthError('Network error');
+      } finally {
+        btn.disabled = false;
+      }
+    }
+
+    async function handleProfileSetupSubmit() {
+      const name = document.getElementById('onboard-ec-name').value.trim();
+      const phone = document.getElementById('onboard-ec-phone').value.trim();
+      const rel = document.getElementById('onboard-ec-rel').value;
+      
+      if (!name || !phone) return showAuthError('Please provide contact details');
+      
+      const btn = document.getElementById('btn-onboard-submit');
+      btn.disabled = true;
+      
+      try {
+        const token = localStorage.getItem('safepath_token');
+        const res = await fetch('/api/auth/profile-setup', {
+          method: 'POST',
+          headers: { 
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer ' + token
+          },
+          body: JSON.stringify({
+            emergency_contacts: [{ name, phone, relationship: rel }]
+          })
+        });
+        
+        if (res.ok) {
+          const data = await res.json();
+          localStorage.setItem('safepath_user', JSON.stringify(data.user));
+          completeLogin(data.user);
+        } else {
+          showAuthError('Setup failed');
+        }
+      } catch (err) {
+        showAuthError('Network error');
+      } finally {
+        btn.disabled = false;
+      }
     }
 
     function executeSignOut() {
+      localStorage.removeItem('safepath_token');
+      localStorage.removeItem('safepath_user');
       document.getElementById('auth-gateway').style.display = 'flex';
-      switchSection('sec-search');
+      switchAuthForm('login');
     }
 
     // =========================================================

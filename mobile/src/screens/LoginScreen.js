@@ -7,17 +7,36 @@ import { useAuth } from '../context/AuthContext';
 
 export const LoginScreen = ({ navigation }) => {
   const { login, loading } = useAuth();
-  const [email, setEmail] = useState('demo@saferoute.app');
-  const [password, setPassword] = useState('demo1234');
+  const [identifier, setIdentifier] = useState('');
+  const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
 
   const handleLogin = async () => {
+    if (!identifier.trim() || !password) {
+      setError('Please enter both your email/mobile and password.');
+      return;
+    }
     setError('');
-    const res = await login(email, password);
+    const res = await login(identifier.trim(), password);
     if (res.success) {
-      navigation.navigate('MainTabs');
+      // AuthContext updates isAuthenticated, triggering navigator redirect
     } else {
-      setError(res.error || 'Login failed');
+      if (res.error && res.error.includes('unverified')) {
+        navigation.navigate('VerifyOtp');
+      } else {
+        setError(res.error || 'Login failed. Please check your credentials.');
+      }
+    }
+  };
+
+  const handleGuestAccess = async () => {
+    setIdentifier('demo@saferoute.app');
+    setPassword('demo1234');
+    setError('');
+    const res = await login('demo@saferoute.app', 'demo1234');
+    if (!res.success) {
+      setError(res.error || 'Guest login failed');
     }
   };
 
@@ -27,17 +46,21 @@ export const LoginScreen = ({ navigation }) => {
 
       <View style={styles.formCard}>
         <Text style={styles.formTitle}>SafeRoute Account</Text>
-        <Text style={styles.formSubtitle}>Default demo account credentials pre-loaded</Text>
+        <Text style={styles.formSubtitle}>Sign in with your email or mobile number</Text>
 
-        {error ? <Text style={styles.errorText}>{error}</Text> : null}
+        {error ? (
+          <View style={styles.errorBox}>
+            <Text style={styles.errorText}>{error}</Text>
+          </View>
+        ) : null}
 
         <View style={styles.inputGroup}>
-          <Text style={styles.label}>Email Address</Text>
+          <Text style={styles.label}>Email or Mobile Number</Text>
           <TextInput
             style={styles.input}
-            value={email}
-            onChangeText={setEmail}
-            placeholder="name@example.com"
+            value={identifier}
+            onChangeText={setIdentifier}
+            placeholder="e.g. name@example.com or +919876543210"
             placeholderTextColor={COLORS.textMuted}
             keyboardType="email-address"
             autoCapitalize="none"
@@ -45,26 +68,45 @@ export const LoginScreen = ({ navigation }) => {
         </View>
 
         <View style={styles.inputGroup}>
-          <Text style={styles.label}>Password</Text>
-          <TextInput
-            style={styles.input}
-            value={password}
-            onChangeText={setPassword}
-            placeholder="••••••••"
-            placeholderTextColor={COLORS.textMuted}
-            secureTextEntry
-          />
+          <View style={styles.labelRow}>
+            <Text style={styles.label}>Password</Text>
+            <TouchableOpacity onPress={() => navigation.navigate('ForgotPassword')}>
+              <Text style={styles.forgotLink}>Forgot Password?</Text>
+            </TouchableOpacity>
+          </View>
+          <View style={styles.passwordWrapper}>
+            <TextInput
+              style={[styles.input, { flex: 1 }]}
+              value={password}
+              onChangeText={setPassword}
+              placeholder="••••••••"
+              placeholderTextColor={COLORS.textMuted}
+              secureTextEntry={!showPassword}
+            />
+            <TouchableOpacity onPress={() => setShowPassword(!showPassword)} style={styles.eyeBtn}>
+              <Text style={styles.eyeIcon}>{showPassword ? '🙈' : '👁️'}</Text>
+            </TouchableOpacity>
+          </View>
         </View>
 
         <Button
-          title="Log In"
+          title="Log In ›"
           onPress={handleLogin}
           loading={loading}
+          disabled={loading}
+          style={{ marginTop: 10 }}
+        />
+
+        <Button
+          title="⚡ 1-Click Guest Access"
+          onPress={handleGuestAccess}
+          variant="warning"
+          disabled={loading}
           style={{ marginTop: 10 }}
         />
 
         <TouchableOpacity onPress={() => navigation.navigate('Register')} style={styles.linkRow}>
-          <Text style={styles.linkText}>Don't have an account? <Text style={styles.linkHighlight}>Register</Text></Text>
+          <Text style={styles.linkText}>Don't have an account? <Text style={styles.linkHighlight}>Create Account</Text></Text>
         </TouchableOpacity>
       </View>
     </ScrollView>
@@ -83,7 +125,7 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.surfaceCard,
     borderRadius: 16,
     padding: 20,
-    marginTop: 20,
+    marginTop: 16,
     borderWidth: 1,
     borderColor: COLORS.border
   },
@@ -98,32 +140,64 @@ const styles = StyleSheet.create({
     marginTop: 4,
     marginBottom: 16
   },
+  errorBox: {
+    backgroundColor: 'rgba(239, 68, 68, 0.15)',
+    borderColor: COLORS.dangerRed,
+    borderWidth: 1,
+    borderRadius: 10,
+    padding: 10,
+    marginBottom: 14
+  },
+  errorText: {
+    color: '#FCA5A5',
+    fontSize: 12,
+    fontWeight: '600'
+  },
   inputGroup: {
     marginBottom: 14
   },
-  label: {
-    color: COLORS.textSecondary,
-    fontSize: 12,
-    fontWeight: '600',
+  labelRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
     marginBottom: 6
   },
-  input: {
-    backgroundColor: COLORS.surfaceElevated,
-    color: COLORS.textPrimary,
-    borderRadius: 10,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-    fontSize: 14,
-    borderWidth: 1,
-    borderColor: COLORS.border
+  label: {
+    color: COLORS.textSecondary,
+    fontSize: 11,
+    fontWeight: '700',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5
   },
-  errorText: {
-    color: COLORS.dangerRed,
-    fontSize: 12,
-    marginBottom: 10
+  forgotLink: {
+    color: COLORS.primaryLight,
+    fontSize: 11,
+    fontWeight: '700'
+  },
+  input: {
+    backgroundColor: '#090E1A',
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    borderRadius: 10,
+    color: '#ffffff',
+    padding: 12,
+    fontSize: 14
+  },
+  passwordWrapper: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    position: 'relative'
+  },
+  eyeBtn: {
+    position: 'absolute',
+    right: 12,
+    padding: 4
+  },
+  eyeIcon: {
+    fontSize: 16
   },
   linkRow: {
-    marginTop: 16,
+    marginTop: 20,
     alignItems: 'center'
   },
   linkText: {

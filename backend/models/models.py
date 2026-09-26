@@ -8,10 +8,25 @@ class User(db.Model):
     
     id = db.Column(db.Integer, primary_key=True)
     full_name = db.Column(db.String(120), nullable=False)
-    phone = db.Column(db.String(30), nullable=True)
+    phone = db.Column(db.String(30), unique=True, nullable=True)
     email = db.Column(db.String(120), unique=True, nullable=False)
     password_hash = db.Column(db.String(255), nullable=False)
+    
+    is_verified = db.Column(db.Boolean, default=False, nullable=False)
+    is_active = db.Column(db.Boolean, default=True, nullable=False)
+    onboarding_completed = db.Column(db.Boolean, default=False, nullable=False)
+    
+    verification_otp = db.Column(db.String(6), nullable=True)
+    verification_otp_expires_at = db.Column(db.DateTime, nullable=True)
+    otp_resend_cooldown_until = db.Column(db.DateTime, nullable=True)
+    verification_attempts = db.Column(db.Integer, default=0, nullable=False)
+    
+    reset_otp = db.Column(db.String(6), nullable=True)
+    reset_otp_expires_at = db.Column(db.DateTime, nullable=True)
+    reset_attempts = db.Column(db.Integer, default=0, nullable=False)
+    
     created_at = db.Column(db.DateTime, default=lambda: datetime.datetime.now(timezone.utc))
+    updated_at = db.Column(db.DateTime, default=lambda: datetime.datetime.now(timezone.utc), onupdate=lambda: datetime.datetime.now(timezone.utc))
     
     emergency_contacts = db.relationship('EmergencyContact', backref='user', cascade='all, delete-orphan', lazy=True)
     trusted_contacts = db.relationship('TrustedContact', backref='user', cascade='all, delete-orphan', lazy=True)
@@ -23,7 +38,11 @@ class User(db.Model):
             'full_name': self.full_name,
             'phone': self.phone,
             'email': self.email,
-            'created_at': self.created_at.isoformat() if self.created_at else None
+            'is_verified': self.is_verified,
+            'is_active': self.is_active,
+            'onboarding_completed': self.onboarding_completed,
+            'created_at': self.created_at.isoformat() if self.created_at else None,
+            'updated_at': self.updated_at.isoformat() if self.updated_at else None
         }
 
 class EmergencyContact(db.Model):

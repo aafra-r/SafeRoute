@@ -56,7 +56,10 @@ def seed_database():
             full_name='Alex Rivera (Demo)',
             email='demo@saferoute.app',
             phone='+1 (555) 019-2834',
-            password_hash=hash_password('demo1234')
+            password_hash=hash_password('demo1234'),
+            is_verified=True,
+            is_active=True,
+            onboarding_completed=True
         )
         db.session.add(demo_user)
         db.session.commit()

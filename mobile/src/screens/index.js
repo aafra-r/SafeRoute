@@ -1,6 +1,9 @@
 export { SplashScreen } from './SplashScreen';
 export { LoginScreen } from './LoginScreen';
 export { RegisterScreen } from './RegisterScreen';
+export { VerifyOtpScreen } from './VerifyOtpScreen';
+export { ForgotPasswordScreen } from './ForgotPasswordScreen';
+export { OnboardingScreen } from './OnboardingScreen';
 export { HomeScreen } from './HomeScreen';
 export { TravelDetailsScreen } from './TravelDetailsScreen';
 export { VehicleSelectScreen } from './VehicleSelectScreen';

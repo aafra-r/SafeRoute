@@ -44,6 +44,8 @@ def create_app(config_class=Config):
     app.register_blueprint(settings_bp)
     app.register_blueprint(dataset_bp)
     app.register_blueprint(feedback_bp)
+    from backend.routes.track_routes import track_bp
+    app.register_blueprint(track_bp)
 
     # Root Web Route: Real-Time Mobile & Web Application
     @app.route('/')

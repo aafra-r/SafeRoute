@@ -107,18 +107,16 @@ const MOCK_SAFE_HAVENS = [
 ];
 
 export const ApiService = {
-  // Auth
-  login: async (email, password) => {
+  // Auth APIs
+  login: async (identifier, password) => {
     try {
-      const res = await client.post('/api/auth/login', { email, password });
+      const res = await client.post('/api/auth/login', { identifier, password });
       return res.data;
     } catch (err) {
-      // Offline fallback
-      return {
-        message: 'Login successful (Offline Demo)',
-        token: 'demo-jwt-token',
-        user: { id: 1, full_name: 'Alex Rivera (Demo)', email: email || 'demo@saferoute.app', phone: '+1 (555) 019-2834' }
-      };
+      if (err.response && err.response.data) {
+        throw new Error(err.response.data.error || 'Login failed');
+      }
+      throw new Error('Network error. Unable to connect to server.');
     }
   },
 
@@ -127,11 +125,82 @@ export const ApiService = {
       const res = await client.post('/api/auth/register', userData);
       return res.data;
     } catch (err) {
-      return {
-        message: 'Registration successful (Offline Demo)',
-        token: 'demo-jwt-token',
-        user: { id: 2, full_name: userData.full_name, email: userData.email, phone: userData.phone }
-      };
+      if (err.response && err.response.data) {
+        throw new Error(err.response.data.error || 'Registration failed');
+      }
+      throw new Error('Network error. Unable to connect to server.');
+    }
+  },
+
+  verifyOtp: async (identifier, otp) => {
+    try {
+      const res = await client.post('/api/auth/verify-otp', { identifier, otp });
+      return res.data;
+    } catch (err) {
+      if (err.response && err.response.data) {
+        throw new Error(err.response.data.error || 'OTP verification failed');
+      }
+      throw new Error('Network error. Unable to verify OTP code.');
+    }
+  },
+
+  resendOtp: async (identifier) => {
+    try {
+      const res = await client.post('/api/auth/resend-otp', { identifier });
+      return res.data;
+    } catch (err) {
+      if (err.response && err.response.data) {
+        throw new Error(err.response.data.error || 'Resend OTP failed');
+      }
+      throw new Error('Network error. Unable to resend OTP code.');
+    }
+  },
+
+  forgotPassword: async (identifier) => {
+    try {
+      const res = await client.post('/api/auth/forgot-password', { identifier });
+      return res.data;
+    } catch (err) {
+      if (err.response && err.response.data) {
+        throw new Error(err.response.data.error || 'Forgot password failed');
+      }
+      throw new Error('Network error. Unable to process forgot password request.');
+    }
+  },
+
+  resetPassword: async (payload) => {
+    try {
+      const res = await client.post('/api/auth/reset-password', payload);
+      return res.data;
+    } catch (err) {
+      if (err.response && err.response.data) {
+        throw new Error(err.response.data.error || 'Reset password failed');
+      }
+      throw new Error('Network error. Unable to reset password.');
+    }
+  },
+
+  getProfile: async () => {
+    try {
+      const res = await client.get('/api/auth/me');
+      return res.data;
+    } catch (err) {
+      if (err.response && err.response.data) {
+        throw new Error(err.response.data.error || 'Failed to fetch user profile');
+      }
+      throw new Error('Session expired or invalid token.');
+    }
+  },
+
+  updateProfileSetup: async (payload) => {
+    try {
+      const res = await client.post('/api/auth/profile-setup', payload);
+      return res.data;
+    } catch (err) {
+      if (err.response && err.response.data) {
+        throw new Error(err.response.data.error || 'Profile setup failed');
+      }
+      throw new Error('Network error. Unable to save profile setup.');
     }
   },
 
