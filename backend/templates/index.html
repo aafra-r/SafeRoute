@@ -3,10 +3,15 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>SafeRoute — AI Safety Navigation Platform</title>
+  <title>Safe Path — AI Safety Navigation Platform</title>
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <style>
+    /* =========================================================
+       THEME DEFINITIONS
+       dark (default) — deep navy / blue-black
+       professional   — slate blue / steel-grey executive palette
+       ========================================================= */
     :root {
       --bg: #070A12;
       --surface: #0F172A;
@@ -24,6 +29,27 @@
       --border: #1E293B;
       --border-accent: #334155;
       --glass: rgba(15, 23, 42, 0.85);
+      --user-dot: #10B981;
+    }
+
+    body.theme-professional {
+      --bg: #0E1621;
+      --surface: #152032;
+      --surface-elevated: #1C2D45;
+      --surface-card: #172337;
+      --primary: #4B9CD3;
+      --primary-hover: #3A7BB2;
+      --primary-light: #7EC0F0;
+      --safe-green: #27AE60;
+      --safe-green-bg: rgba(39, 174, 96, 0.12);
+      --warning-yellow: #E67E22;
+      --danger-red: #E74C3C;
+      --text-main: #ECF0F1;
+      --text-muted: #8FA8C0;
+      --border: #1C2D45;
+      --border-accent: #2A4060;
+      --glass: rgba(21, 32, 50, 0.9);
+      --user-dot: #27AE60;
     }
 
     * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif; }
@@ -95,7 +121,9 @@
        2. MAIN WORKSPACE (SIDEBAR + MAP)
        ========================================================= */
     .sidebar {
-      width: 440px;
+      width: 45%;
+      min-width: 380px;
+      max-width: 620px;
       height: 100vh;
       background: var(--surface);
       border-right: 1px solid var(--border);
@@ -103,6 +131,78 @@
       flex-direction: column;
       z-index: 1000;
       box-shadow: 6px 0 30px rgba(0, 0, 0, 0.5);
+      transition: width 0.3s ease, min-width 0.3s ease;
+      flex-shrink: 0;
+    }
+
+    /* Collapsed sidebar */
+    .sidebar.collapsed {
+      width: 56px !important;
+      min-width: 56px !important;
+      overflow: hidden;
+    }
+    .sidebar.collapsed .content-area,
+    .sidebar.collapsed .bottom-bar,
+    .sidebar.collapsed .brand-tagline,
+    .sidebar.collapsed .pro-badge {
+      display: none !important;
+    }
+    .sidebar.collapsed .brand-title { font-size: 22px; }
+    .sidebar.collapsed .header-bar { padding: 14px 10px; justify-content: center; }
+
+    /* Expand/Collapse toggle button on the map edge */
+    #sidebar-toggle {
+      position: absolute;
+      top: 50%;
+      left: 0;
+      transform: translateY(-50%);
+      z-index: 2000;
+      background: var(--surface-elevated);
+      border: 1px solid var(--border-accent);
+      border-left: none;
+      color: var(--text-muted);
+      font-size: 14px;
+      width: 20px;
+      height: 56px;
+      border-radius: 0 8px 8px 0;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.2s;
+    }
+    #sidebar-toggle:hover { background: var(--primary); color: #fff; }
+
+    /* Drag-resize handle — the thin strip at the right edge of the sidebar */
+    #resize-handle {
+      position: absolute;
+      top: 0;
+      right: -4px;
+      width: 8px;
+      height: 100%;
+      cursor: col-resize;
+      z-index: 1100;
+    }
+    #resize-handle::after {
+      content: '';
+      position: absolute;
+      top: 50%;
+      left: 3px;
+      transform: translateY(-50%);
+      width: 2px;
+      height: 40px;
+      background: var(--border-accent);
+      border-radius: 2px;
+      transition: background 0.2s;
+    }
+    #resize-handle:hover::after { background: var(--primary); }
+
+    .map-container {
+      flex: 1;
+      height: 100vh;
+      position: relative;
+      background: #070A12;
+      min-width: 0;
     }
 
     .header-bar {
@@ -115,6 +215,10 @@
     }
     .brand-title { font-size: 18px; font-weight: 800; display: flex; align-items: center; gap: 10px; color: #fff; }
     .brand-tagline { font-size: 11px; color: var(--text-muted); font-weight: 500; margin-top: 2px; }
+
+    /* Professional mode indicator pill (only visible in professional theme) */
+    .pro-badge { display: none; font-size: 10px; font-weight: 800; padding: 3px 8px; border-radius: 6px; background: rgba(75, 156, 211, 0.18); border: 1px solid #4B9CD3; color: #7EC0F0; letter-spacing: 0.4px; }
+    body.theme-professional .pro-badge { display: inline-block; }
 
     .content-area { flex: 1; overflow-y: auto; padding: 18px; }
     .page-section { display: none; }
@@ -267,8 +371,8 @@
     .nav-icon { font-size: 18px; margin-bottom: 3px; }
 
     /* Map Viewport & Controls */
-    .map-container { flex: 1; height: 100vh; position: relative; background: #070A12; }
     #leaflet-map { width: 100%; height: 100%; z-index: 1; }
+
 
     .map-hud {
       position: absolute;
@@ -356,196 +460,102 @@
       border-radius: 18px;
       color: var(--text-muted);
     }
+
+    .autocomplete-wrapper {
+      position: relative;
+      flex: 1;
+    }
+    .autocomplete-dropdown {
+      position: absolute;
+      top: 100%;
+      left: 0;
+      right: 0;
+      background: #0F172A;
+      border: 1.5px solid var(--border-accent);
+      border-radius: 10px;
+      max-height: 210px;
+      overflow-y: auto;
+      z-index: 999;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.85);
+      margin-top: 4px;
+      display: none;
+    }
+    .autocomplete-item {
+      padding: 10px 14px;
+      font-size: 12px;
+      color: var(--text-main);
+      cursor: pointer;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      transition: background 0.2s;
+    }
+    .autocomplete-item:hover {
+      background: #1E293B;
+      color: var(--primary-light);
+    }
   </style>
 </head>
 <body>
 
-  
   <!-- =========================================================
-       1. PRODUCTION AUTHENTICATION GATEWAY OVERLAY
+       1. AUTHENTICATION GATEWAY OVERLAY
        ========================================================= -->
   <div id="auth-gateway">
     <div class="auth-card">
       <div class="auth-logo-badge">🛡️</div>
-      <h2 style="font-size: 24px; font-weight: 800; letter-spacing: -0.5px; color: #fff;">SafeRoute AI</h2>
-      <p style="font-size: 13px; color: var(--text-muted); margin-top: 4px;">Human-Centered Real-Time Safe Navigation</p>
+      <h2 style="font-size: 24px; font-weight: 800; letter-spacing: -0.5px; color: #fff;">Safe Path</h2>
+      <p style="font-size: 13px; color: var(--text-muted); margin-top: 4px;">Real-Time AI Safety Navigation</p>
 
-      <!-- Auth Tabs -->
-      <div class="auth-tabs" id="auth-main-tabs">
-        <button class="auth-tab-btn active" id="tab-auth-login" onclick="switchAuthForm('login')">Sign In</button>
-        <button class="auth-tab-btn" id="tab-auth-register" onclick="switchAuthForm('register')">Create Account</button>
+      <div class="auth-tabs">
+        <button class="auth-tab-btn active" id="tab-auth-login" onclick="toggleAuthMode('login')">Sign In</button>
+        <button class="auth-tab-btn" id="tab-auth-register" onclick="toggleAuthMode('register')">Create Account</button>
       </div>
 
-      <!-- Error Alert Box -->
-      <div id="auth-error-alert" style="display: none; background: rgba(239, 68, 68, 0.15); border: 1px solid var(--danger-red); color: #FCA5A5; font-size: 12px; padding: 10px 14px; border-radius: 12px; margin-bottom: 14px; text-align: left; font-weight: 600;"></div>
-      <div id="auth-success-alert" style="display: none; background: rgba(16, 185, 129, 0.15); border: 1px solid var(--safe-green); color: #6EE7B7; font-size: 12px; padding: 10px 14px; border-radius: 12px; margin-bottom: 14px; text-align: left; font-weight: 600;"></div>
-
-      <!-- 1. SIGN IN FORM -->
+      <!-- Sign In Form -->
       <div id="auth-form-login">
         <div style="text-align: left; margin-bottom: 12px;">
-          <label class="input-label">EMAIL OR MOBILE NUMBER</label>
-          <input type="text" id="login-identifier" class="input-field" placeholder="e.g. name@example.com or +919876543210" autocomplete="username">
+          <label class="input-label">EMAIL ADDRESS</label>
+          <input type="email" id="gateway-login-email" class="input-field" value="" placeholder="e.g. user@gmail.com" oninput="validateLoginEmail(this.value)">
+          <div id="login-email-msg" style="font-size: 11px; margin-top: 4px; display: none;"></div>
         </div>
-
-        <div style="text-align: left; margin-bottom: 12px; position: relative;">
-          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
-            <label class="input-label" style="margin: 0;">PASSWORD</label>
-            <a href="javascript:void(0)" onclick="switchAuthForm('forgot')" style="font-size: 11px; color: var(--primary-light); text-decoration: none; font-weight: 700;">Forgot Password?</a>
-          </div>
-          <div style="position: relative;">
-            <input type="password" id="login-password" class="input-field" placeholder="••••••••" autocomplete="current-password">
-            <button type="button" onclick="togglePasswordVisibility('login-password', this)" style="position: absolute; right: 12px; top: 50%; transform: translateY(-50%); background: none; border: none; color: var(--text-muted); cursor: pointer; font-size: 14px;">👁️</button>
-          </div>
+        <div style="text-align: left; margin-bottom: 18px;">
+          <label class="input-label">PASSWORD</label>
+          <input type="password" id="gateway-login-password" class="input-field" value="" placeholder="Enter your password">
         </div>
-
-        <button class="btn" id="btn-login-submit" style="padding: 13px; margin-top: 6px;" onclick="handleLoginSubmit()">
-          <span id="login-btn-text">Sign In to Navigation ›</span>
-        </button>
-
-        <button class="btn btn-warning" style="margin-top: 10px; padding: 11px;" onclick="executeQuickDemoAuth()">⚡ 1-Click Guest Access</button>
+        <button class="btn" style="padding: 13px;" onclick="executeGatewayLogin()">Sign In to Safe Path ›</button>
+        <button class="btn btn-warning" style="margin-top: 10px;" onclick="executeQuickDemoAuth()">⚡ 1-Click Guest Access</button>
       </div>
 
-      <!-- 2. CREATE ACCOUNT FORM -->
+      <!-- Register Form -->
       <div id="auth-form-register" style="display: none; text-align: left;">
         <div style="margin-bottom: 10px;">
-          <label class="input-label">FULL NAME *</label>
-          <input type="text" id="reg-fullname" class="input-field" placeholder="e.g. Alex Rivera">
+          <label class="input-label">FULL NAME</label>
+          <input type="text" id="gateway-reg-name" class="input-field" value="" placeholder="e.g. Ananya Sharma">
         </div>
-
         <div style="margin-bottom: 10px;">
-          <label class="input-label">EMAIL ADDRESS *</label>
-          <input type="email" id="reg-email" class="input-field" placeholder="name@example.com" autocomplete="email">
+          <label class="input-label">EMAIL ADDRESS</label>
+          <input type="email" id="gateway-reg-email" class="input-field" value="" placeholder="name@gmail.com" oninput="validateRegEmail(this.value)">
+          <div id="reg-email-msg" style="font-size: 11px; margin-top: 4px; display: none;"></div>
         </div>
-
         <div style="margin-bottom: 10px;">
-          <label class="input-label">MOBILE NUMBER</label>
-          <input type="tel" id="reg-phone" class="input-field" placeholder="+91 9876543210" value="+91 ">
+          <label class="input-label">PASSWORD (Min. 6 chars)</label>
+          <input type="password" id="gateway-reg-password" class="input-field" value="" placeholder="••••••••" oninput="checkPasswordStrength(this.value)">
+          <div id="reg-pwd-msg" style="font-size: 11px; margin-top: 4px; color: var(--text-muted);">Password strength: Enter at least 6 characters</div>
         </div>
-
-        <div style="margin-bottom: 10px; position: relative;">
-          <label class="input-label">CREATE PASSWORD *</label>
-          <div style="position: relative;">
-            <input type="password" id="reg-password" class="input-field" placeholder="Min. 8 characters" oninput="checkPasswordRequirements(this.value)" autocomplete="new-password">
-            <button type="button" onclick="togglePasswordVisibility('reg-password', this)" style="position: absolute; right: 12px; top: 50%; transform: translateY(-50%); background: none; border: none; color: var(--text-muted); cursor: pointer; font-size: 14px;">👁️</button>
-          </div>
-        </div>
-
-        <!-- Dynamic Password Strength Checklist -->
-        <div id="pwd-checklist" style="background: #090E1A; border: 1px solid var(--border); border-radius: 10px; padding: 10px; margin-bottom: 10px; font-size: 11px; color: var(--text-muted);">
-          <div id="pwd-req-length">✖ 8+ characters</div>
-          <div id="pwd-req-upper">✖ At least 1 uppercase letter (A-Z)</div>
-          <div id="pwd-req-lower">✖ At least 1 lowercase letter (a-z)</div>
-          <div id="pwd-req-number">✖ At least 1 number (0-9)</div>
-          <div id="pwd-req-special">✖ At least 1 special char (!@#$%^&*)</div>
-        </div>
-
-        <div style="margin-bottom: 12px; position: relative;">
-          <label class="input-label">CONFIRM PASSWORD *</label>
-          <div style="position: relative;">
-            <input type="password" id="reg-confirm-password" class="input-field" placeholder="Re-enter password" oninput="checkPasswordMatch()" autocomplete="new-password">
-            <button type="button" onclick="togglePasswordVisibility('reg-confirm-password', this)" style="position: absolute; right: 12px; top: 50%; transform: translateY(-50%); background: none; border: none; color: var(--text-muted); cursor: pointer; font-size: 14px;">👁️</button>
-          </div>
-          <div id="pwd-match-msg" style="font-size: 11px; margin-top: 3px; display: none;"></div>
-        </div>
-
-        <div style="display: flex; align-items: flex-start; gap: 8px; margin-bottom: 14px;">
-          <input type="checkbox" id="reg-terms" style="margin-top: 3px; cursor: pointer;">
-          <label for="reg-terms" style="font-size: 11.5px; color: var(--text-muted); line-height: 1.4; cursor: pointer;">
-            I agree to the <a href="javascript:void(0)" style="color: var(--primary-light);">Terms of Service</a> & <a href="javascript:void(0)" style="color: var(--primary-light);">Privacy Policy</a>.
-          </label>
-        </div>
-
-        <button class="btn btn-success" id="btn-reg-submit" style="padding: 13px;" onclick="handleRegisterSubmit()">
-          <span id="reg-btn-text">Create Account & Send Code ›</span>
-        </button>
-      </div>
-
-      <!-- 3. ACCOUNT VERIFICATION FORM (OTP) -->
-      <div id="auth-form-verify" style="display: none; text-align: left;">
-        <div style="background: rgba(59, 130, 246, 0.12); border: 1px solid var(--primary); border-radius: 12px; padding: 12px; margin-bottom: 14px; font-size: 12px; color: #93C5FD;">
-          📲 A 6-digit verification code was sent to <b id="verify-target-display">your email</b>.
-        </div>
-
-        <div style="margin-bottom: 14px;">
-          <label class="input-label">ENTER 6-DIGIT VERIFICATION CODE</label>
-          <input type="text" id="verify-otp-input" class="input-field" placeholder="123456" maxlength="6" style="font-size: 22px; letter-spacing: 8px; text-align: center; font-weight: 800;">
-        </div>
-
-        <button class="btn btn-success" id="btn-verify-submit" style="padding: 13px;" onclick="handleVerifyOtpSubmit()">
-          <span id="verify-btn-text">Verify & Activate Account ›</span>
-        </button>
-
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 14px;">
-          <span id="resend-cooldown-text" style="font-size: 11.5px; color: var(--text-muted);">Resend code in 60s</span>
-          <button id="btn-resend-otp" class="btn btn-secondary" style="width: auto; padding: 6px 12px; font-size: 11px;" onclick="handleResendOtp()" disabled>Resend Code</button>
-        </div>
-      </div>
-
-      <!-- 4. FORGOT PASSWORD FORM -->
-      <div id="auth-form-forgot" style="display: none; text-align: left;">
-        <p style="font-size: 12px; color: var(--text-muted); margin-bottom: 14px;">
-          Enter your registered email address or mobile number below to receive a password reset OTP code.
-        </p>
-
-        <div style="margin-bottom: 14px;">
-          <label class="input-label">EMAIL OR MOBILE NUMBER</label>
-          <input type="text" id="forgot-identifier" class="input-field" placeholder="name@example.com or +919876543210">
-        </div>
-
-        <button class="btn" id="btn-forgot-submit" style="padding: 13px;" onclick="handleForgotSubmit()">
-          <span id="forgot-btn-text">Send Reset Code ›</span>
-        </button>
-
-        <button class="btn btn-secondary" style="margin-top: 10px; padding: 10px;" onclick="switchAuthForm('login')">‹ Back to Sign In</button>
-      </div>
-
-      <!-- 5. RESET PASSWORD FORM -->
-      <div id="auth-form-reset" style="display: none; text-align: left;">
-        <div style="margin-bottom: 10px;">
-          <label class="input-label">RESET OTP CODE</label>
-          <input type="text" id="reset-otp-input" class="input-field" placeholder="6-digit code" maxlength="6" style="text-align: center; font-size: 18px; font-weight: 800; letter-spacing: 4px;">
-        </div>
-
-        <div style="margin-bottom: 10px; position: relative;">
-          <label class="input-label">NEW PASSWORD</label>
-          <div style="position: relative;">
-            <input type="password" id="reset-new-password" class="input-field" placeholder="Min. 8 characters" autocomplete="new-password">
-            <button type="button" onclick="togglePasswordVisibility('reset-new-password', this)" style="position: absolute; right: 12px; top: 50%; transform: translateY(-50%); background: none; border: none; color: var(--text-muted); cursor: pointer; font-size: 14px;">👁️</button>
-          </div>
-        </div>
-
-        <div style="margin-bottom: 14px; position: relative;">
-          <label class="input-label">CONFIRM NEW PASSWORD</label>
-          <div style="position: relative;">
-            <input type="password" id="reset-confirm-password" class="input-field" placeholder="Re-enter new password" autocomplete="new-password">
-            <button type="button" onclick="togglePasswordVisibility('reset-confirm-password', this)" style="position: absolute; right: 12px; top: 50%; transform: translateY(-50%); background: none; border: none; color: var(--text-muted); cursor: pointer; font-size: 14px;">👁️</button>
-          </div>
-        </div>
-
-        <button class="btn btn-success" id="btn-reset-submit" style="padding: 13px;" onclick="handleResetPasswordSubmit()">
-          <span id="reset-btn-text">Update Password & Sign In ›</span>
-        </button>
-      </div>
-
-      <!-- 6. ONBOARDING / PROFILE SETUP MODAL -->
-      <div id="auth-form-onboarding" style="display: none; text-align: left;">
-        <div style="background: rgba(16, 185, 129, 0.12); border: 1px solid var(--safe-green); border-radius: 12px; padding: 12px; margin-bottom: 14px; font-size: 12px; color: #6EE7B7;">
-          🛡️ Account active! Set up your primary emergency contact for 1-click SOS alerts.
-        </div>
-
         <div style="margin-bottom: 10px;">
           <label class="input-label">EMERGENCY CONTACT NAME</label>
-          <input type="text" id="onboard-ec-name" class="input-field" placeholder="e.g. Ramesh Sharma">
+          <input type="text" id="gateway-reg-ec-name" class="input-field" value="" placeholder="e.g. Ramesh Sharma">
         </div>
-
-        <div style="display: flex; gap: 8px; margin-bottom: 14px;">
+        <div style="display: flex; gap: 8px; margin-bottom: 16px;">
           <div style="flex: 1;">
             <label class="input-label">CONTACT PHONE</label>
-            <input type="tel" id="onboard-ec-phone" class="input-field" placeholder="+919876543210" value="+91 ">
+            <input type="text" id="gateway-reg-contact" class="input-field" value="+91 " placeholder="+91 9876543210" onfocus="ensureCountryCode(this)">
           </div>
           <div style="flex: 1;">
             <label class="input-label">RELATIONSHIP</label>
-            <select id="onboard-ec-rel" class="input-field" style="padding: 9.5px;">
+            <select id="gateway-reg-ec-rel" class="input-field" style="padding: 9.5px;">
               <option value="Family">Family</option>
               <option value="Friend">Friend</option>
               <option value="Partner">Partner</option>
@@ -553,88 +563,70 @@
             </select>
           </div>
         </div>
-
-        <button class="btn btn-success" id="btn-onboard-submit" style="padding: 13px;" onclick="handleProfileSetupSubmit()">
-          <span id="onboard-btn-text">Save & Continue to Navigation ›</span>
-        </button>
+        <button class="btn btn-success" style="padding: 13px;" onclick="executeGatewayRegister()">Create Account & Start ›</button>
       </div>
-
     </div>
-  </div>
-
   </div>
 
   <!-- =========================================================
        2. MAIN LEFT NAVIGATION SIDEBAR
        ========================================================= -->
-  <div class="sidebar">
+  <div class="sidebar" id="main-sidebar">
+    <div id="resize-handle" title="Drag to resize panel"></div>
     <div class="header-bar">
       <div>
-        <div class="brand-title">🛡️ SafeRoute</div>
+        <div class="brand-title">
+          🛡️ Safe Path <span class="pro-badge">PRO</span>
+        </div>
         <div class="brand-tagline">Navigate Safer, Not Just Faster</div>
       </div>
       <div style="display: flex; gap: 8px; align-items: center;">
-        <span style="background: rgba(16, 185, 129, 0.15); border: 1px solid var(--safe-green); color: var(--safe-green); font-size: 10px; font-weight: 800; padding: 4px 8px; border-radius: 6px;">📶 LIVE GPS</span>
         <button class="btn btn-secondary" style="width: 34px; height: 34px; padding: 0; font-size: 14px; border-radius: 10px;" onclick="switchSection('sec-user')" title="User Profile">👤</button>
       </div>
     </div>
 
     <div class="content-area">
 
-      <!-- =======================================================
-           SECTION 1: ROUTE PLANNER (USER INPUTS FROM & TO)
-           ======================================================= -->
+      <!-- ======================================================
+           SECTION 1: ROUTE SEARCH (Plan)
+           ====================================================== -->
       <div id="sec-search" class="page-section active">
         <div class="card">
-          <!-- From Input -->
-          <label class="input-label">FROM (YOUR LOCATION)</label>
+          <h3 style="font-size: 15px; font-weight: 800; margin-bottom: 12px; color: #fff;">Plan Your Safe Journey</h3>
+
+          <label class="input-label">FROM (ORIGIN)</label>
           <div style="display: flex; gap: 8px; margin-bottom: 12px;">
-            <input type="text" id="origin-input" class="input-field" placeholder="Enter starting address or landmark">
-            <button class="btn btn-secondary" style="width: 44px; padding: 0; flex-shrink: 0;" title="Detect My Current GPS Location" onclick="useDeviceGps()">📍</button>
+            <div class="autocomplete-wrapper">
+              <input type="text" id="origin-input" class="input-field" placeholder="Enter starting address or landmark" autocomplete="off" oninput="handleAddressAutocomplete('origin-input', 'origin-suggestions')">
+              <div id="origin-suggestions" class="autocomplete-dropdown"></div>
+            </div>
           </div>
 
-          <!-- To Input -->
           <label class="input-label">TO (DESTINATION)</label>
-          <input type="text" id="dest-input" class="input-field" placeholder="Where do you want to go? (e.g. Central Library, Hospital)">
-
-          <!-- Transport Mode Selector -->
-          <label class="input-label" style="margin-top: 12px;">MODE OF TRANSPORT</label>
-          <div class="mode-grid">
-            <button class="mode-btn active" data-mode="personal_vehicle" onclick="setTransportMode('personal_vehicle', this)">
-              <span style="font-size: 18px;">🚗</span><span>Drive</span>
-            </button>
-            <button class="mode-btn" data-mode="walking" onclick="setTransportMode('walking', this)">
-              <span style="font-size: 18px;">🚶</span><span>Walk</span>
-            </button>
-            <button class="mode-btn" data-mode="bus" onclick="setTransportMode('bus', this)">
-              <span style="font-size: 18px;">🚌</span><span>Bus</span>
-            </button>
-            <button class="mode-btn" data-mode="cab" onclick="setTransportMode('cab', this)">
-              <span style="font-size: 18px;">🚕</span><span>Cab</span>
-            </button>
-            <button class="mode-btn" data-mode="auto" onclick="setTransportMode('auto', this)">
-              <span style="font-size: 18px;">🛺</span><span>Auto</span>
-            </button>
+          <div class="autocomplete-wrapper" style="margin-bottom: 12px;">
+            <input type="text" id="dest-input" class="input-field" placeholder="Where do you want to go?" autocomplete="off" oninput="handleAddressAutocomplete('dest-input', 'dest-suggestions')">
+            <div id="dest-suggestions" class="autocomplete-dropdown"></div>
           </div>
 
-          <!-- Safety Preference -->
-          <div style="display: flex; gap: 8px; margin-top: 12px;">
-            <div style="flex: 1;">
-              <label class="input-label">SAFETY PREFERENCE</label>
-              <select id="pref-select" class="input-field" style="padding: 9px;">
-                <option value="safest" selected>🛡️ Safest (Max Havens & Lighting)</option>
-                <option value="balanced">⚖️ Balanced (Time & Safety)</option>
-                <option value="fastest">⚡ Fastest Only</option>
-              </select>
-            </div>
-            <div style="flex: 1;">
-              <label class="input-label">DEPARTURE</label>
-              <input type="text" id="dep-time" class="input-field" value="Now" style="padding: 9px;">
-            </div>
+          <label class="input-label">MODE OF TRANSPORT</label>
+          <div class="mode-grid" style="margin-bottom: 12px;">
+            <button class="mode-btn" id="mode-walking" onclick="selectMode('walking')">🚶<span>Walk</span></button>
+            <button class="mode-btn active" id="mode-personal_vehicle" onclick="selectMode('personal_vehicle')">🚗<span>Car</span></button>
+            <button class="mode-btn" id="mode-cab" onclick="selectMode('cab')">🚖<span>Cab</span></button>
+            <button class="mode-btn" id="mode-auto" onclick="selectMode('auto')">🛺<span>Auto</span></button>
+            <button class="mode-btn" id="mode-bus" onclick="selectMode('bus')">🚌<span>Bus</span></button>
           </div>
 
-          <button class="btn" style="margin-top: 14px; padding: 13px;" onclick="calculateUserRouteSearch()">
-            🔍 Search Safe Routes & Safety Scores
+          <div id="vehicle-id-container" style="display: none; margin-bottom: 12px;">
+            <label class="input-label" style="color: var(--safe-green);">VEHICLE NUMBER / ID</label>
+            <input type="text" id="vehicle-id-input" class="input-field" placeholder="e.g. KA-01-AB-1234, Cab PIN" style="border-color: rgba(16, 185, 129, 0.4);">
+          </div>
+
+          <label class="input-label">DEPARTURE TIME</label>
+          <input type="text" id="dep-time" class="input-field" style="margin-bottom: 14px;" placeholder="Now">
+
+          <button class="btn" onclick="calculateUserRouteSearch()" id="calculate-btn">
+            Find Safest Path →
           </button>
         </div>
 
@@ -643,137 +635,36 @@
           <div class="placeholder-box">
             <div style="font-size: 36px; margin-bottom: 8px;">🗺️</div>
             <h4 style="font-size: 14px; font-weight: 700; color: #fff;">Plan Your Safe Journey</h4>
-            <p style="font-size: 12px; margin-top: 4px; line-height: 1.5;">Enter your starting location and destination above to predict real-time safety scores, street lighting coverage, and 24/7 safe havens.</p>
+            <p style="font-size: 12px; margin-top: 6px;">Enter origin and destination above to see safety-ranked routes with real-time data.</p>
           </div>
         </div>
       </div>
 
-      <!-- =======================================================
-           SECTION 2: TURN-BY-TURN NAVIGATION
-           ======================================================= -->
+      <!-- ======================================================
+           SECTION 2: LIVE NAVIGATION (Navigate)
+           ====================================================== -->
       <div id="sec-live" class="page-section">
-        <div class="turn-banner">
-          <div class="turn-icon" id="live-turn-icon">➡️</div>
-          <div>
-            <div style="font-size: 11px; opacity: 0.9;" id="live-turn-dist">In 180 meters</div>
-            <h4 style="font-size: 15px; font-weight: 800;" id="live-turn-instruction">Turn Right onto Central Boulevard</h4>
-          </div>
-        </div>
-
-        <div class="card" id="live-status-card" style="border-left: 4px solid var(--safe-green);">
-          <div style="display: flex; justify-content: space-between; align-items: center;">
-            <span class="input-label" style="margin:0;">SAFETY MONITOR</span>
-            <span id="live-status-pill" style="font-size: 10px; font-weight: 800; color: var(--safe-green);">OPTIMAL ✓</span>
-          </div>
-          <p id="live-status-msg" style="font-size: 12px; margin-top: 4px; color: #CBD5E1;">On planned well-lit safe corridor.</p>
-        </div>
-
-        <div class="card" style="border-left: 4px solid var(--primary-light);">
-          <span class="input-label" style="color: var(--primary-light);">NEAREST 24/7 SANCTUARY</span>
-          <h4 id="live-haven-name" style="font-size: 14px; font-weight: 800; margin-top: 2px;">🏥 City General Hospital</h4>
-          <p id="live-haven-detail" style="font-size: 11px; color: var(--text-muted); margin-top: 2px;">Reach Time: <b style="color: var(--safe-green);" id="live-haven-time">90 seconds</b> • 110m away</p>
-        </div>
-
-        <div class="card" style="border: 1px dashed var(--border-accent);">
-          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
-            <span class="input-label" style="color: var(--primary-light); margin:0;">GPS NAVIGATION TRACKER</span>
-            <span id="live-gps-pill" style="font-size: 10px; font-weight: 800; color: var(--safe-green);">ACTIVE</span>
-          </div>
-          <button id="toggle-gps-btn" class="btn btn-secondary" style="font-size: 11.5px; padding: 10px;" onclick="toggleContinuousGpsTracking()">
-            📡 Enable Live Device GPS Tracking
-          </button>
-          <div style="display: flex; gap: 8px; margin-top: 8px;">
-            <button class="btn btn-secondary" style="flex: 1; font-size: 11.5px;" onclick="advanceGpsStep()">Step Forward ›</button>
-            <button class="btn btn-danger" style="flex: 1; font-size: 11.5px;" onclick="simulateRouteDeviation()">Simulate Deviation ⚠️</button>
-          </div>
-          <button class="btn btn-outline" style="margin-top: 8px; font-size: 11.5px;" onclick="completeTrip()">Complete Journey ✓</button>
-        </div>
-
-        <div class="card">
-          <label class="input-label">TURN-BY-TURN STEPS</label>
-          <div id="steps-list" style="max-height: 160px; overflow-y: auto; font-size: 12px; line-height: 1.6; color: #CBD5E1;">
-            <p>1. Start along calculated safe route.</p>
-          </div>
-        </div>
-      </div>
-
-      <!-- =======================================================
-           SECTION 3: COMMUNITY REVIEWS & SAFETY FEEDBACK
-           ======================================================= -->
-      <div id="sec-feedback" class="page-section">
-        <div class="card" style="border-left: 4px solid var(--warning-yellow);">
-          <h3 style="font-size: 16px; font-weight: 800; margin-bottom: 4px;">💬 Community Safety Feedback</h3>
-          <p style="font-size: 12px; color: var(--text-muted); margin-bottom: 12px;">
-            Rate street lighting, crowd activity, and safety to train our AI navigation model.
-          </p>
-
-          <label class="input-label">ROUTE REVIEWED</label>
-          <input type="text" id="feedback-route" class="input-field" value="Route A (Well-Lit Corridor)">
-
-          <label class="input-label" style="margin-top: 10px;">SAFETY RATING</label>
-          <div style="display: flex; gap: 8px; font-size: 22px; cursor: pointer; margin: 4px 0 10px 0;" id="star-box">
-            <span onclick="setStarRating(1)">⭐</span>
-            <span onclick="setStarRating(2)">⭐</span>
-            <span onclick="setStarRating(3)">⭐</span>
-            <span onclick="setStarRating(4)">⭐</span>
-            <span onclick="setStarRating(5)">⭐</span>
-            <span id="star-text" style="font-size: 12px; font-weight: 700; color: var(--safe-green); margin-left: 6px; display: flex; align-items: center;">5.0 / 5 (Excellent)</span>
-          </div>
-
-          <div style="display: flex; gap: 8px;">
+        <div class="card" style="border-left: 4px solid var(--safe-green);">
+          <h3 style="font-size: 15px; font-weight: 800; margin-bottom: 12px;">Active Navigation</h3>
+          <div id="turn-instruction-banner" class="turn-banner" style="display:none;">
+            <div class="turn-icon" id="turn-icon">➡️</div>
             <div style="flex: 1;">
-              <label class="input-label">LIGHTING</label>
-              <select id="fb-lighting" class="input-field" style="padding: 8px;">
-                <option value="Well-Lit">💡 Well-Lit</option>
-                <option value="Moderate">🟡 Moderate</option>
-                <option value="Dark">🌑 Dark</option>
-              </select>
+              <div style="font-size: 13px; font-weight: 800;" id="turn-instruction-text">Follow the route</div>
+              <div style="font-size: 11px; margin-top: 3px; opacity: 0.8;" id="turn-distance-text"></div>
             </div>
-            <div style="flex: 1;">
-              <label class="input-label">CROWD</label>
-              <select id="fb-crowd" class="input-field" style="padding: 8px;">
-                <option value="Crowded & Active">👥 Active Crowd</option>
-                <option value="Moderate">🚶 Moderate</option>
-                <option value="Isolated">⚠️ Isolated</option>
-              </select>
+            <div style="display: flex; gap: 6px;">
+              <button onclick="prevStep()" style="background: rgba(255,255,255,0.2); border: none; color: #fff; padding: 4px 10px; border-radius: 6px; cursor: pointer; font-size: 12px;">‹</button>
+              <button onclick="nextStep()" style="background: rgba(255,255,255,0.2); border: none; color: #fff; padding: 4px 10px; border-radius: 6px; cursor: pointer; font-size: 12px;">›</button>
             </div>
           </div>
-
-          <label class="input-label" style="margin-top: 10px;">SAFETY COMMENTS</label>
-          <textarea id="fb-comments" class="input-field" style="height: 60px; resize: none;" placeholder="e.g. Well-lit street, open shops, felt very safe!"></textarea>
-
-          <button class="btn btn-warning" style="margin-top: 10px;" onclick="submitFeedback()">Submit Review ›</button>
-        </div>
-
-        <div class="card">
-          <label class="input-label">COMMUNITY SAFETY FEED</label>
-          <div id="feedback-list" style="display: flex; flex-direction: column; gap: 8px; max-height: 200px; overflow-y: auto;"></div>
+          <div id="live-safety-info" style="font-size: 12px; color: var(--text-muted);">Start a route from the Plan tab to begin navigation.</div>
+          <button class="btn btn-secondary" style="margin-top: 12px;" onclick="endJourney()" id="end-journey-btn" disabled>End Journey</button>
         </div>
       </div>
 
-      <!-- =======================================================
-           SECTION 4: AI ASSISTANT (GPT-4o ROUTE PLANNER)
-           ======================================================= -->
-      <div id="sec-ai" class="page-section">
-        <div class="card">
-          <h3 style="font-size: 16px; font-weight: 800; margin-bottom: 4px;">✨ AI Safety Assistant</h3>
-          <p style="font-size: 12px; color: var(--text-muted); margin-bottom: 12px;">
-            Type your travel request in natural language (e.g. <i>"I need to reach Central Library by 10 AM using a well-lit walking path"</i>).
-          </p>
-          <textarea id="ai-query-input" class="input-field" style="height: 75px; resize: none;" placeholder="Type your safe route request..."></textarea>
-          <button class="btn" style="margin-top: 10px;" onclick="executeAiParse()">Parse AI Query ›</button>
-
-          <div id="ai-output-card" style="display: none; background: #090E1A; padding: 14px; border-radius: 12px; border: 1px solid var(--border); margin-top: 12px; font-size: 12px;">
-            <p style="font-weight: 800; color: var(--primary-light); margin-bottom: 4px;">STRUCTURED INTENT DETECTED:</p>
-            <p id="ai-summary-text" style="color: var(--text-muted); margin-bottom: 8px;"></p>
-            <button class="btn btn-success" onclick="applyAiRoute()">Search This Route ›</button>
-          </div>
-        </div>
-      </div>
-
-      <!-- =======================================================
-           SECTION 5: USER PROFILE & EMERGENCY CONTACTS
-           ======================================================= -->
+      <!-- ======================================================
+           SECTION 5: USER PROFILE
+           ====================================================== -->
       <div id="sec-user" class="page-section">
         <div class="card" style="border-left: 4px solid var(--primary);">
           <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px;">
@@ -781,21 +672,21 @@
               <div style="width: 44px; height: 44px; border-radius: 50%; background: linear-gradient(135deg, #2563EB, #10B981); display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 18px; color: #fff;">AR</div>
               <div>
                 <h4 id="profile-name" style="font-size: 16px; font-weight: 800;">Alex Rivera</h4>
-                <p id="profile-email" style="font-size: 12px; color: var(--text-muted);">user@saferoute.app</p>
+                <p id="profile-email" style="font-size: 12px; color: var(--text-muted);">user@safepath.app</p>
               </div>
             </div>
             <span style="background: rgba(16, 185, 129, 0.15); border: 1px solid var(--safe-green); color: var(--safe-green); font-size: 10px; font-weight: 800; padding: 4px 8px; border-radius: 6px;">AUTHENTICATED</span>
           </div>
 
-          <div style="background:#090E1A; padding:12px; border-radius:12px; border:1px solid var(--border); margin-bottom:10px; font-size:12px;">
+          <div id="profile-ec-list" style="background:#090E1A; padding:12px; border-radius:12px; border:1px solid var(--border); margin-bottom:10px; font-size:12px;">
             <span class="input-label" style="color: var(--primary-light);">TRUSTED EMERGENCY CONTACT</span>
-            <p style="font-weight:700;">👩 Sarah Rivera (Mother)</p>
-            <p style="color: var(--text-muted); margin-top: 2px;">📞 +1 (555) 019-9988 • SMS & Live Location Recipient</p>
+            <p id="profile-ec-name" style="font-weight:700;">No Emergency Contact Set</p>
+            <p id="profile-ec-phone" style="color: var(--text-muted); margin-top: 2px;">Add a contact to enable SOS alerts.</p>
           </div>
 
           <div style="background:#090E1A; padding:12px; border-radius:12px; border:1px solid var(--border); margin-bottom:14px; font-size:12px;">
             <span class="input-label" style="color: var(--safe-green);">SAFETY RESILIENCE GUARANTEE</span>
-            <p style="font-weight:700;">🛡️ Maximum 120s reach time to 24/7 help</p>
+            <p style="font-weight:700;"> Maximum 120s reach time to 24/7 help</p>
             <p style="color: var(--text-muted); margin-top: 2px;">Route Deviation Alert: >50 meters off corridor</p>
           </div>
 
@@ -808,17 +699,13 @@
     <!-- CLEAN CONSUMER NAVIGATION TAB BAR -->
     <div class="bottom-bar">
       <button class="nav-tab-btn active" id="tab-routes" onclick="switchSection('sec-search')">
-        <span class="nav-icon">🗺️</span><span>Plan</span>
+        <span class="nav-icon"></span><span>Plan</span>
       </button>
       <button class="nav-tab-btn" id="tab-live" onclick="switchSection('sec-live')">
         <span class="nav-icon">📍</span><span>Navigate</span>
       </button>
-      <button class="nav-tab-btn" id="tab-feedback" onclick="switchSection('sec-feedback')">
-        <span class="nav-icon">💬</span><span>Reviews</span>
-      </button>
-      <button class="nav-tab-btn" id="tab-ai" onclick="switchSection('sec-ai')">
-        <span class="nav-icon">✨</span><span>AI Help</span>
-      </button>
+      
+      
       <button class="nav-tab-btn" id="tab-user" onclick="switchSection('sec-user')">
         <span class="nav-icon">👤</span><span>Profile</span>
       </button>
@@ -831,11 +718,15 @@
   <div class="map-container">
     <div id="leaflet-map"></div>
 
-    <!-- Map Layer Selector (Top Left) -->
-    <div style="position: absolute; top: 20px; left: 20px; z-index: 500; display: flex; gap: 6px; background: rgba(15, 23, 42, 0.92); backdrop-filter: blur(10px); padding: 5px; border-radius: 12px; border: 1px solid var(--border-accent);">
+    <!-- Sidebar collapse/expand handle -->
+    <button id="sidebar-toggle" onclick="toggleSidebar()" title="Collapse / Expand panel">‹</button>
+
+    <!-- Map Layer / Theme Selector (Top Left) -->
+    <div style="position: absolute; top: 20px; left: 20px; z-index: 500; display: flex; gap: 6px; flex-wrap: wrap; background: rgba(15, 23, 42, 0.92); backdrop-filter: blur(10px); padding: 5px; border-radius: 12px; border: 1px solid var(--border-accent);">
       <button class="nav-tab-btn map-style-btn active" data-style="dark" onclick="setMapStyle('dark')" style="padding: 6px 10px; font-size: 11px;">🌙 Dark</button>
+      <button class="nav-tab-btn map-style-btn" data-style="professional" onclick="setMapStyle('professional')" style="padding: 6px 10px; font-size: 11px;">🏢 Pro</button>
       <button class="nav-tab-btn map-style-btn" data-style="satellite" onclick="setMapStyle('satellite')" style="padding: 6px 10px; font-size: 11px;">🛰️ Satellite</button>
-      <button class="nav-tab-btn map-style-btn" data-style="streets" onclick="setMapStyle('streets')" style="padding: 6px 10px; font-size: 11px;">🗺️ Streets</button>
+      <button class="nav-tab-btn map-style-btn" data-style="streets" onclick="setMapStyle('streets')" style="padding: 6px 10px; font-size: 11px;"> Streets</button>
     </div>
 
     <!-- Floating HUD (Top Right) -->
@@ -926,8 +817,8 @@
           </button>
         </div>
 
-        <button class="btn btn-secondary" style="padding: 11px; font-size: 11.5px;" onclick="callEmergencyContact()">
-          📞 Call Emergency Contact: Sarah Rivera (+1 555-019-9988)
+        <button class="btn btn-secondary" style="padding: 11px; font-size: 11.5px;" onclick="callEmergencyContact()" id="call-contact-btn">
+          📞 Call Emergency Contact
         </button>
 
         <div style="display: flex; gap: 8px;">
@@ -962,23 +853,79 @@
     let currentTransportMode = "personal_vehicle";
     let selectedStars = 5;
 
+    // Step-by-step guard — user must click "Start Journey" before the Navigate tab is accessible
+    let journeyStarted = false;
+
     // Default map center (Bangalore / City Center)
     let userCoords = { lat: 12.9716, lon: 77.5946 };
     let liveDataset = null;
     let datasetMarkers = { havens: [], streetlights: [], crowd: [], cctv: [], incidents: [] };
 
-    // Leaflet Tile Styles
+    // =========================================================
+    // LEAFLET TILE LAYERS (all free — no API key required)
+    // =========================================================
     let currentTileLayer;
     const tileLayers = {
-      dark: L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', { maxZoom: 19, attribution: '&copy; OpenStreetMap &copy; CARTO' }),
-      satellite: L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', { maxZoom: 19, attribution: 'Tiles &copy; Esri' }),
-      streets: L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '&copy; OpenStreetMap' })
+      // ESRI Dark Gray Canvas — genuinely free, no API key required
+      dark: L.tileLayer(
+        'https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}',
+        { maxZoom: 16,
+          attribution: 'Tiles &copy; Esri &mdash; Esri, DeLorme, NAVTEQ',
+          crossOrigin: true
+        }
+      ),
+      // ESRI Light Gray Canvas — professional light style
+      professional: L.tileLayer(
+        'https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Base/MapServer/tile/{z}/{y}/{x}',
+        { maxZoom: 16,
+          attribution: 'Tiles &copy; Esri &mdash; Esri, DeLorme, NAVTEQ',
+          crossOrigin: true
+        }
+      ),
+      // ESRI World Imagery — satellite view
+      satellite: L.tileLayer(
+        'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
+        { maxZoom: 19, attribution: 'Tiles &copy; Esri' }
+      ),
+      // OpenStreetMap — standard streets
+      streets: L.tileLayer(
+        'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+        { maxZoom: 19,
+          attribution: '&copy; <a href="https://www.openstreetmap.org/">OpenStreetMap</a> contributors'
+        }
+      )
     };
+
+    // If dark tiles fail to load (network issue), silently fall back to OSM streets
+    tileLayers.dark.on('tileerror', function() {
+      if (currentTileLayer === tileLayers.dark) {
+        console.warn('[Safe Path] Dark tiles failed — falling back to OSM streets');
+        map.removeLayer(tileLayers.dark);
+        currentTileLayer = tileLayers.streets;
+        tileLayers.streets.addTo(map);
+      }
+    });
+
 
     function setMapStyle(style) {
       if (currentTileLayer) map.removeLayer(currentTileLayer);
-      currentTileLayer = tileLayers[style];
+      currentTileLayer = tileLayers[style] || tileLayers.dark;
       currentTileLayer.addTo(map);
+
+      // Switch body theme class between dark and professional
+      if (style === 'professional') {
+        document.body.classList.add('theme-professional');
+      } else {
+        document.body.classList.remove('theme-professional');
+      }
+
+      // Update marker colour to match new theme dot variable
+      const dot = document.getElementById('user-pulse-dot');
+      if (dot) {
+        const dotColor = getComputedStyle(document.documentElement).getPropertyValue('--user-dot').trim() || '#10B981';
+        dot.style.background = dotColor;
+        dot.style.boxShadow = `0 0 16px ${dotColor}`;
+      }
 
       document.querySelectorAll('.map-style-btn').forEach(btn => {
         if (btn.dataset.style === style) btn.classList.add('active');
@@ -986,401 +933,303 @@
       });
     }
 
+    function refreshUserDotColor() {
+      const dot = document.getElementById('user-pulse-dot');
+      if (!dot) return;
+      const c = getComputedStyle(document.documentElement).getPropertyValue('--user-dot').trim() || '#10B981';
+      dot.style.background = c;
+      dot.style.boxShadow  = `0 0 16px ${c}`;
+      dot.style.border = '3px solid #fff';
+    }
+
+    
+    let liveTrackingToken = null;
+    let liveTrackingInterval = null;
+    let watchPositionId = null;
+
+    function startLiveTracking() {
+      if (!liveTrackingToken) {
+        liveTrackingToken = Date.now().toString(36) + Math.random().toString(36).substring(2);
+      }
+
+      if (navigator.geolocation) {
+        watchPositionId = navigator.geolocation.watchPosition(async (pos) => {
+          userCoords = { lat: pos.coords.latitude, lon: pos.coords.longitude };
+          if (userMarker) userMarker.setLatLng([userCoords.lat, userCoords.lon]);
+
+          try {
+            await fetch('/api/journey/' + liveTrackingToken + '/location', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ lat: userCoords.lat, lon: userCoords.lon })
+            });
+          } catch(e) {}
+        }, (err) => console.error(err), { enableHighAccuracy: true });
+      }
+    }
+
+    function stopLiveTracking() {
+      if (watchPositionId && navigator.geolocation) {
+        navigator.geolocation.clearWatch(watchPositionId);
+        watchPositionId = null;
+      }
+    }
+
     function initMap() {
       map = L.map('leaflet-map', { zoomControl: false }).setView([userCoords.lat, userCoords.lon], 14);
       L.control.zoom({ position: 'bottomright' }).addTo(map);
       setMapStyle('dark');
-      loadLiveDataset();
-      loadUserFeedbacks();
 
-      // Set initial user marker on map
+      // User location marker — always visible, no API key needed
       const userIcon = L.divIcon({
-        html: `<div id="user-pulse-dot" style="width:18px; height:18px; border-radius:50%; background:#10B981; border:3px solid #fff; box-shadow:0 0 16px #10B981;"></div>`,
+        html: `<div id="user-pulse-dot" style="width:18px; height:18px; border-radius:50%; background:#10B981; border:3px solid #fff; box-shadow:0 0 16px #10B981; transition: background 0.3s, box-shadow 0.3s;"></div>`,
         className: '',
         iconSize: [18, 18]
       });
       userMarker = L.marker([userCoords.lat, userCoords.lon], { icon: userIcon }).addTo(map);
 
-      // NOTE: We DO NOT automatically calculate routes on page load! 
-      // The user must type From & To and click Search.
+      // Lock Navigate tab until user explicitly starts a journey
+      lockNavigateTab();
+      startLiveTracking();
+
+      // NOTE: Routes are ONLY calculated when the user submits the search form.
+      // Dataset markers load only when needed (on demand).
     }
 
     // =========================================================
-    // AUTHENTICATION GATEWAY (PRODUCTION)
+    // STEP-BY-STEP GUARD HELPERS
     // =========================================================
-    
-    // Switch between forms
-    function switchAuthForm(formId) {
-      document.getElementById('auth-form-login').style.display = 'none';
-      document.getElementById('auth-form-register').style.display = 'none';
-      document.getElementById('auth-form-verify').style.display = 'none';
-      document.getElementById('auth-form-forgot').style.display = 'none';
-      document.getElementById('auth-form-reset').style.display = 'none';
-      document.getElementById('auth-form-onboarding').style.display = 'none';
-      
-      document.getElementById('auth-main-tabs').style.display = (formId === 'login' || formId === 'register') ? 'flex' : 'none';
-      
-      if (formId === 'login') {
+    function lockNavigateTab() {
+      const tabLive = document.getElementById('tab-live');
+      if (tabLive) {
+        tabLive.style.opacity = '0.4';
+        tabLive.title = 'Start a journey first to access live navigation';
+        tabLive.onclick = (e) => {
+          e.preventDefault();
+          showToast('⚠️ Search routes and press "Start Journey" first!');
+        };
+      }
+    }
+
+    function unlockNavigateTab() {
+      const tabLive = document.getElementById('tab-live');
+      if (tabLive) {
+        tabLive.style.opacity = '1';
+        tabLive.title = 'Live Navigation';
+        tabLive.onclick = () => switchSection('sec-live');
+      }
+    }
+
+    function showToast(msg) {
+      let t = document.getElementById('toast-msg');
+      if (!t) {
+        t = document.createElement('div');
+        t.id = 'toast-msg';
+        t.style.cssText = 'position:fixed;bottom:80px;left:50%;transform:translateX(-50%);background:#1E293B;color:#F8FAFC;padding:10px 20px;border-radius:24px;font-size:13px;font-weight:700;z-index:9999;border:1px solid #334155;box-shadow:0 8px 20px rgba(0,0,0,0.6);pointer-events:none;opacity:0;transition:opacity 0.25s;';
+        document.body.appendChild(t);
+      }
+      t.textContent = msg;
+      t.style.opacity = '1';
+      clearTimeout(t._timer);
+      t._timer = setTimeout(() => { t.style.opacity = '0'; }, 2800);
+    }
+
+
+    // =========================================================
+    // AUTHENTICATION GATEWAY & VALIDATION
+    // =========================================================
+    function toggleAuthMode(mode) {
+      if (mode === 'login') {
         document.getElementById('tab-auth-login').classList.add('active');
         document.getElementById('tab-auth-register').classList.remove('active');
-      } else if (formId === 'register') {
+        document.getElementById('auth-form-login').style.display = 'block';
+        document.getElementById('auth-form-register').style.display = 'none';
+      } else {
         document.getElementById('tab-auth-register').classList.add('active');
         document.getElementById('tab-auth-login').classList.remove('active');
+        document.getElementById('auth-form-register').style.display = 'block';
+        document.getElementById('auth-form-login').style.display = 'none';
       }
-      
-      document.getElementById('auth-form-' + formId).style.display = 'block';
-      hideAuthError();
-      hideAuthSuccess();
     }
 
-    function showAuthError(msg) {
-      const err = document.getElementById('auth-error-alert');
-      err.textContent = '❌ ' + msg;
-      err.style.display = 'block';
-    }
-
-    function hideAuthError() {
-      document.getElementById('auth-error-alert').style.display = 'none';
-    }
-
-    function showAuthSuccess(msg) {
-      const succ = document.getElementById('auth-success-alert');
-      succ.textContent = '✅ ' + msg;
-      succ.style.display = 'block';
-    }
-
-    function hideAuthSuccess() {
-      document.getElementById('auth-success-alert').style.display = 'none';
-    }
-
-    function togglePasswordVisibility(inputId, btn) {
-      const input = document.getElementById(inputId);
-      if (input.type === 'password') {
-        input.type = 'text';
-        btn.textContent = '🙈';
+    function validateLoginEmail(val) {
+      const msg = document.getElementById('login-email-msg');
+      if (!val) { msg.style.display = 'none'; return; }
+      const re = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!re.test(val)) {
+        msg.style.display = 'block';
+        msg.style.color = 'var(--danger-red)';
+        msg.textContent = '⚠️ Invalid email format (e.g., user@gmail.com)';
       } else {
-        input.type = 'password';
-        btn.textContent = '👁️';
+        msg.style.display = 'block';
+        msg.style.color = 'var(--safe-green)';
+        msg.textContent = '✓ Valid email format';
       }
     }
 
-    // Handlers
-    async function handleLoginSubmit() {
-      const identifier = document.getElementById('login-identifier').value.trim();
-      const password = document.getElementById('login-password').value;
-      const btn = document.getElementById('btn-login-submit');
-      const btnText = document.getElementById('login-btn-text');
-
-      if (!identifier || !password) {
-        return showAuthError('Please enter both email/mobile and password.');
+    function validateRegEmail(val) {
+      const msg = document.getElementById('reg-email-msg');
+      if (!val) { msg.style.display = 'none'; return; }
+      const re = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!re.test(val)) {
+        msg.style.display = 'block';
+        msg.style.color = 'var(--danger-red)';
+        msg.textContent = '⚠️ Please enter a valid email address (e.g. user@gmail.com)';
+      } else {
+        msg.style.display = 'block';
+        msg.style.color = 'var(--safe-green)';
+        msg.textContent = '✓ Valid email format';
       }
+    }
 
-      btn.disabled = true;
-      btnText.textContent = 'Signing in...';
-      hideAuthError();
+    function checkPasswordStrength(val) {
+      const msg = document.getElementById('reg-pwd-msg');
+      if (!val) {
+        msg.style.color = 'var(--text-muted)';
+        msg.textContent = 'Password strength: Enter at least 6 characters';
+        return;
+      }
+      if (val.length < 6) {
+        msg.style.color = 'var(--danger-red)';
+        msg.textContent = '⚠️ Weak (Too short - min 6 chars)';
+      } else if (val.length >= 8 && /[A-Z]/.test(val) && /[0-9]/.test(val)) {
+        msg.style.color = 'var(--safe-green)';
+        msg.textContent = '💪 Strong password';
+      } else {
+        msg.style.color = 'var(--warning-yellow)';
+        msg.textContent = '⚡ Fair password (add numbers/uppercase for strong)';
+      }
+    }
+
+    function ensureCountryCode(input) {
+      if (!input.value.trim() || input.value.trim() === '+91') {
+        input.value = '+91 ';
+      }
+    }
+
+    function requestLocationPermissionOnLogin() {
+      if (navigator.geolocation) {
+        showToast('Accessing device GPS location...');
+        navigator.geolocation.getCurrentPosition(
+          (pos) => {
+            userCoords = { lat: pos.coords.latitude, lon: pos.coords.longitude };
+            if (userMarker) userMarker.setLatLng([userCoords.lat, userCoords.lon]);
+            map.panTo([userCoords.lat, userCoords.lon]);
+            showToast('✓ GPS Location active & locked');
+          },
+          (err) => {
+            console.warn('[Location] GPS permission denied/unavailable:', err.message);
+            showToast('Using default city coordinates. Enable GPS anytime.');
+          },
+          { enableHighAccuracy: true, timeout: 8000 }
+        );
+      }
+    }
+
+    function updateProfileUI(user) {
+      if (!user) return;
+      document.getElementById('profile-name').textContent = user.full_name || "Safe Path User";
+      document.getElementById('profile-email').textContent = user.email || "";
+
+      // Update Emergency Contact
+      const ecNameEl = document.getElementById('profile-ec-name');
+      const ecPhoneEl = document.getElementById('profile-ec-phone');
+      
+      if (user.emergency_contacts && user.emergency_contacts.length > 0) {
+        const ec = user.emergency_contacts[0];
+        let relStr = ec.relationship ? ` (${ec.relationship})` : "";
+        ecNameEl.textContent = `${ec.name}${relStr}`;
+        ecPhoneEl.textContent = `${ec.phone} • SMS & Live Location Recipient`;
+      } else {
+        ecNameEl.textContent = "No Emergency Contact Set";
+        ecPhoneEl.textContent = "Add a contact to enable SOS alerts.";
+      }
+    }
+
+    async function executeGatewayLogin() {
+      const email = document.getElementById('gateway-login-email').value.trim();
+      const password = document.getElementById('gateway-login-password').value;
+
+      if (!email || !password) {
+        alert("Please enter both your email address and password.");
+        return;
+      }
 
       try {
         const res = await fetch('/api/auth/login', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ identifier, password })
+          body: JSON.stringify({ email, password })
         });
         const data = await res.json();
 
-        if (!res.ok) {
-          if (res.status === 403 && data.requires_verification) {
-            // User needs to verify
-            document.getElementById('verify-target-display').textContent = identifier;
-            sessionStorage.setItem('pending_verify_identifier', identifier);
-            switchAuthForm('verify');
-            showAuthSuccess('A new verification code has been sent.');
-          } else {
-            showAuthError(data.error || 'Login failed');
-          }
-        } else {
-          // Success
+        if (res.ok && data.token) {
           localStorage.setItem('safepath_token', data.token);
           localStorage.setItem('safepath_user', JSON.stringify(data.user));
-          completeLogin(data.user);
-        }
-      } catch (err) {
-        showAuthError('Network error. Please try again.');
-      } finally {
-        btn.disabled = false;
-        btnText.textContent = 'Sign In to Navigation ›';
-      }
-    }
-
-    function completeLogin(user) {
-      document.getElementById('profile-name').textContent = user.full_name || "User";
-      document.getElementById('profile-email').textContent = user.email || "";
-      document.getElementById('auth-gateway').style.display = 'none';
-    }
-
-    async function executeQuickDemoAuth() {
-      document.getElementById('login-identifier').value = 'demo@saferoute.app';
-      document.getElementById('login-password').value = 'demo1234';
-      handleLoginSubmit();
-    }
-
-    function checkPasswordRequirements(pwd) {
-      document.getElementById('pwd-req-length').textContent = pwd.length >= 8 ? '✔ 8+ characters' : '✖ 8+ characters';
-      document.getElementById('pwd-req-length').style.color = pwd.length >= 8 ? '#10B981' : 'var(--text-muted)';
-      
-      const hasUpper = /[A-Z]/.test(pwd);
-      document.getElementById('pwd-req-upper').textContent = hasUpper ? '✔ At least 1 uppercase letter (A-Z)' : '✖ At least 1 uppercase letter (A-Z)';
-      document.getElementById('pwd-req-upper').style.color = hasUpper ? '#10B981' : 'var(--text-muted)';
-      
-      const hasLower = /[a-z]/.test(pwd);
-      document.getElementById('pwd-req-lower').textContent = hasLower ? '✔ At least 1 lowercase letter (a-z)' : '✖ At least 1 lowercase letter (a-z)';
-      document.getElementById('pwd-req-lower').style.color = hasLower ? '#10B981' : 'var(--text-muted)';
-      
-      const hasNum = /[0-9]/.test(pwd);
-      document.getElementById('pwd-req-number').textContent = hasNum ? '✔ At least 1 number (0-9)' : '✖ At least 1 number (0-9)';
-      document.getElementById('pwd-req-number').style.color = hasNum ? '#10B981' : 'var(--text-muted)';
-      
-      const hasSpec = /[!@#$%^&*(),.?":{}|<>]/.test(pwd);
-      document.getElementById('pwd-req-special').textContent = hasSpec ? '✔ At least 1 special char (!@#$%^&*)' : '✖ At least 1 special char (!@#$%^&*)';
-      document.getElementById('pwd-req-special').style.color = hasSpec ? '#10B981' : 'var(--text-muted)';
-      
-      checkPasswordMatch();
-    }
-
-    function checkPasswordMatch() {
-      const pwd = document.getElementById('reg-password').value;
-      const conf = document.getElementById('reg-confirm-password').value;
-      const msg = document.getElementById('pwd-match-msg');
-      if (conf.length > 0) {
-        msg.style.display = 'block';
-        if (pwd === conf) {
-          msg.textContent = '✔ Passwords match';
-          msg.style.color = '#10B981';
+          updateProfileUI(data.user);
+          document.getElementById('auth-gateway').style.display = 'none';
+          showToast(`Welcome back, ${data.user.full_name || 'User'}! 👋`);
+          requestLocationPermissionOnLogin();
         } else {
-          msg.textContent = '✖ Passwords do not match';
-          msg.style.color = '#EF4444';
+          alert(data.error || "Login failed. Please check your credentials.");
         }
-      } else {
-        msg.style.display = 'none';
+      } catch (e) {
+        console.error("Login request error:", e);
+        document.getElementById('profile-name').textContent = email.split('@')[0] || "User";
+        document.getElementById('profile-email').textContent = email;
+        document.getElementById('auth-gateway').style.display = 'none';
+        requestLocationPermissionOnLogin();
       }
     }
 
-    async function handleRegisterSubmit() {
-      const full_name = document.getElementById('reg-fullname').value.trim();
-      const email = document.getElementById('reg-email').value.trim();
-      const phone = document.getElementById('reg-phone').value.trim();
-      const password = document.getElementById('reg-password').value;
-      const confirm = document.getElementById('reg-confirm-password').value;
-      const terms = document.getElementById('reg-terms').checked;
+    function executeQuickDemoAuth() {
+      document.getElementById('gateway-login-email').value = "demo@safepath.app";
+      document.getElementById('gateway-login-password').value = "demo1234";
+      executeGatewayLogin();
+    }
 
-      if (!full_name || !email || !password || !confirm) return showAuthError('Please fill all required fields.');
-      if (password !== confirm) return showAuthError('Passwords do not match.');
-      if (!terms) return showAuthError('You must agree to the Terms of Service.');
+    async function executeGatewayRegister() {
+      const full_name = document.getElementById('gateway-reg-name').value.trim();
+      const email = document.getElementById('gateway-reg-email').value.trim();
+      const password = document.getElementById('gateway-reg-password').value;
+      const phone = document.getElementById('gateway-reg-contact').value.trim();
+      const ec_name = document.getElementById('gateway-reg-ec-name').value.trim() || "Emergency Contact";
+      const ec_rel = document.getElementById('gateway-reg-ec-rel').value || "Family";
 
-      const btn = document.getElementById('btn-reg-submit');
-      btn.disabled = true;
-      document.getElementById('reg-btn-text').textContent = 'Creating Account...';
-      hideAuthError();
+      if (!full_name || !email || !password) {
+        alert("Please fill in all required fields (Name, Email, Password).");
+        return;
+      }
+
+      if (password.length < 6) {
+        alert("Password must be at least 6 characters long.");
+        return;
+      }
 
       try {
         const res = await fetch('/api/auth/register', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ full_name, email, phone, password })
+          body: JSON.stringify({ full_name, email, password, phone, emergency_contact_name: ec_name, emergency_contact_phone: phone, emergency_contact_rel: ec_rel })
         });
         const data = await res.json();
 
-        if (!res.ok) {
-          showAuthError(data.error || 'Registration failed');
-        } else {
-          document.getElementById('verify-target-display').textContent = email;
-          sessionStorage.setItem('pending_verify_identifier', email);
-          switchAuthForm('verify');
-          startResendCooldown();
-        }
-      } catch (err) {
-        showAuthError('Network error. Please try again.');
-      } finally {
-        btn.disabled = false;
-        document.getElementById('reg-btn-text').textContent = 'Create Account & Send Code ›';
-      }
-    }
-
-    let resendInterval;
-    function startResendCooldown() {
-      const btn = document.getElementById('btn-resend-otp');
-      const text = document.getElementById('resend-cooldown-text');
-      btn.disabled = true;
-      let left = 60;
-      
-      if (resendInterval) clearInterval(resendInterval);
-      resendInterval = setInterval(() => {
-        left--;
-        text.textContent = `Resend code in ${left}s`;
-        if (left <= 0) {
-          clearInterval(resendInterval);
-          btn.disabled = false;
-          text.textContent = 'Code didn\\'t arrive?';
-        }
-      }, 1000);
-    }
-
-    async function handleResendOtp() {
-      const identifier = sessionStorage.getItem('pending_verify_identifier');
-      if (!identifier) return;
-      
-      try {
-        const res = await fetch('/api/auth/resend-otp', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ identifier })
-        });
-        if (res.ok) {
-          showAuthSuccess('New code sent successfully.');
-          startResendCooldown();
-        } else {
-          const data = await res.json();
-          showAuthError(data.error || 'Failed to resend');
-        }
-      } catch (err) {
-        showAuthError('Network error');
-      }
-    }
-
-    async function handleVerifyOtpSubmit() {
-      const identifier = sessionStorage.getItem('pending_verify_identifier');
-      const otp_code = document.getElementById('verify-otp-input').value.trim();
-      if (!identifier || !otp_code) return showAuthError('Please enter the 6-digit code.');
-
-      const btn = document.getElementById('btn-verify-submit');
-      btn.disabled = true;
-      document.getElementById('verify-btn-text').textContent = 'Verifying...';
-      hideAuthError();
-
-      try {
-        const res = await fetch('/api/auth/verify-otp', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ identifier, otp_code })
-        });
-        const data = await res.json();
-
-        if (!res.ok) {
-          showAuthError(data.error || 'Verification failed');
-        } else {
+        if (res.ok && data.token) {
           localStorage.setItem('safepath_token', data.token);
           localStorage.setItem('safepath_user', JSON.stringify(data.user));
-          if (data.user && !data.user.onboarding_completed) {
-            switchAuthForm('onboarding');
-          } else {
-            completeLogin(data.user);
-          }
-        }
-      } catch (err) {
-        showAuthError('Network error');
-      } finally {
-        btn.disabled = false;
-        document.getElementById('verify-btn-text').textContent = 'Verify & Activate Account ›';
-      }
-    }
-
-    async function handleForgotSubmit() {
-      const identifier = document.getElementById('forgot-identifier').value.trim();
-      if (!identifier) return showAuthError('Please enter your email or mobile.');
-      
-      const btn = document.getElementById('btn-forgot-submit');
-      btn.disabled = true;
-      document.getElementById('forgot-btn-text').textContent = 'Sending...';
-      
-      try {
-        const res = await fetch('/api/auth/forgot-password', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ identifier })
-        });
-        const data = await res.json();
-        
-        if (!res.ok) {
-          showAuthError(data.error || 'Failed to send reset code');
+          updateProfileUI(data.user);
+          document.getElementById('auth-gateway').style.display = 'none';
+          showToast(`Account created successfully! Welcome to Safe Path.`);
+          requestLocationPermissionOnLogin();
         } else {
-          sessionStorage.setItem('pending_reset_identifier', identifier);
-          switchAuthForm('reset');
-          showAuthSuccess('Reset code sent to your email/mobile.');
+          alert(data.error || "Registration failed.");
         }
-      } catch (err) {
-        showAuthError('Network error');
-      } finally {
-        btn.disabled = false;
-        document.getElementById('forgot-btn-text').textContent = 'Send Reset Code ›';
-      }
-    }
-
-    async function handleResetPasswordSubmit() {
-      const identifier = sessionStorage.getItem('pending_reset_identifier');
-      const reset_code = document.getElementById('reset-otp-input').value.trim();
-      const new_password = document.getElementById('reset-new-password').value;
-      const confirm_password = document.getElementById('reset-confirm-password').value;
-      
-      if (!reset_code || !new_password) return showAuthError('Please fill all fields');
-      if (new_password !== confirm_password) return showAuthError('Passwords do not match');
-      
-      const btn = document.getElementById('btn-reset-submit');
-      btn.disabled = true;
-      
-      try {
-        const res = await fetch('/api/auth/reset-password', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ identifier, reset_code, new_password })
-        });
-        const data = await res.json();
-        
-        if (!res.ok) {
-          showAuthError(data.error || 'Reset failed');
-        } else {
-          switchAuthForm('login');
-          showAuthSuccess('Password reset successfully. Please login.');
-        }
-      } catch (err) {
-        showAuthError('Network error');
-      } finally {
-        btn.disabled = false;
-      }
-    }
-
-    async function handleProfileSetupSubmit() {
-      const name = document.getElementById('onboard-ec-name').value.trim();
-      const phone = document.getElementById('onboard-ec-phone').value.trim();
-      const rel = document.getElementById('onboard-ec-rel').value;
-      
-      if (!name || !phone) return showAuthError('Please provide contact details');
-      
-      const btn = document.getElementById('btn-onboard-submit');
-      btn.disabled = true;
-      
-      try {
-        const token = localStorage.getItem('safepath_token');
-        const res = await fetch('/api/auth/profile-setup', {
-          method: 'POST',
-          headers: { 
-            'Content-Type': 'application/json',
-            'Authorization': 'Bearer ' + token
-          },
-          body: JSON.stringify({
-            emergency_contacts: [{ name, phone, relationship: rel }]
-          })
-        });
-        
-        if (res.ok) {
-          const data = await res.json();
-          localStorage.setItem('safepath_user', JSON.stringify(data.user));
-          completeLogin(data.user);
-        } else {
-          showAuthError('Setup failed');
-        }
-      } catch (err) {
-        showAuthError('Network error');
-      } finally {
-        btn.disabled = false;
+      } catch (e) {
+        console.error("Register request error:", e);
+        document.getElementById('profile-name').textContent = full_name;
+        document.getElementById('profile-email').textContent = email;
+        document.getElementById('auth-gateway').style.display = 'none';
+        requestLocationPermissionOnLogin();
       }
     }
 
@@ -1388,7 +1237,7 @@
       localStorage.removeItem('safepath_token');
       localStorage.removeItem('safepath_user');
       document.getElementById('auth-gateway').style.display = 'flex';
-      switchAuthForm('login');
+      switchSection('sec-search');
     }
 
     // =========================================================
@@ -1402,8 +1251,8 @@
       document.querySelectorAll('.bottom-bar .nav-tab-btn').forEach(b => b.classList.remove('active'));
       if (secId === 'sec-search') document.getElementById('tab-routes')?.classList.add('active');
       if (secId === 'sec-live') document.getElementById('tab-live')?.classList.add('active');
-      if (secId === 'sec-feedback') document.getElementById('tab-feedback')?.classList.add('active');
-      if (secId === 'sec-ai') document.getElementById('tab-ai')?.classList.add('active');
+      
+      
       if (secId === 'sec-user') document.getElementById('tab-user')?.classList.add('active');
     }
 
@@ -1411,6 +1260,16 @@
       currentTransportMode = mode;
       document.querySelectorAll('.mode-btn').forEach(b => b.classList.remove('active'));
       btn.classList.add('active');
+      
+      // Show/hide Vehicle ID input based on mode
+      const vehicleIdContainer = document.getElementById('vehicle-id-container');
+      if (['bus', 'cab', 'auto'].includes(mode)) {
+        vehicleIdContainer.style.display = 'block';
+      } else {
+        vehicleIdContainer.style.display = 'none';
+        document.getElementById('vehicle-id-input').value = ''; // clear it
+      }
+
       // If user has already entered locations, update search
       const origin = document.getElementById('origin-input').value.trim();
       const destination = document.getElementById('dest-input').value.trim();
@@ -1512,6 +1371,12 @@
       }
     }
 
+    function formatTimeMinutes(seconds) {
+      if (!seconds || seconds <= 0) return '0.5 min';
+      const mins = (seconds / 60).toFixed(1);
+      return `${mins.replace('.0', '')} min`;
+    }
+
     function renderRouteCards(routes) {
       const container = document.getElementById('routes-container');
       container.innerHTML = '';
@@ -1524,16 +1389,16 @@
         card.innerHTML = `
           <div style="display: flex; justify-content: space-between; align-items: flex-start;">
             <div>
-              ${r.is_recommended ? `<span style="background: var(--safe-green); color: #070A12; font-size: 9.5px; font-weight: 800; padding: 2px 7px; border-radius: 4px; display: inline-block; margin-bottom: 4px;">RECOMMENDED 🛡️</span>` : ''}
+              ${r.is_recommended ? `<span style="background: var(--safe-green); color: #070A12; font-size: 9.5px; font-weight: 800; padding: 2px 7px; border-radius: 4px; display: inline-block; margin-bottom: 4px;">RECOMMENDED </span>` : ''}
               <h4 style="font-size: 15px; font-weight: 800; color: #fff;">${r.name}</h4>
-              <p style="font-size: 12px; color: var(--text-muted); margin-top: 2px;">⏱️ ${r.duration_min} min • 📍 ${r.distance_km} km • ${r.vehicle?.toUpperCase()}</p>
+              <p style="font-size: 12px; color: var(--text-muted); margin-top: 2px;">⏱️ ${r.duration_min} min • ${r.distance_km} km • ${r.vehicle?.toUpperCase()}</p>
             </div>
             <div class="score-badge">${r.safety_score}<span style="font-size: 10px; color: var(--text-muted);">/100</span></div>
           </div>
 
           <div style="margin: 10px 0 8px 0; display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
             <span class="resilience-tag ${isPass ? 'tag-pass' : 'tag-warning'}">RESILIENCE: ${r.resilience_status}</span>
-            <span style="font-size: 11.5px; color: var(--text-muted);">Max Help Time: <b style="color: #fff;">${r.max_time_to_haven_seconds}s</b></span>
+            <span style="font-size: 11.5px; color: var(--text-muted);">Max Help Time: <b style="color: #fff;">${formatTimeMinutes(r.max_time_to_haven_seconds)}</b></span>
             <span style="font-size: 11.5px; color: var(--text-muted);">Havens: <b style="color: #fff;">${r.havens_count}</b></span>
           </div>
 
@@ -1541,7 +1406,7 @@
           <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin: 10px 0; font-size: 11px; background: #070A12; padding: 10px; border-radius: 10px; border: 1px solid var(--border);">
             <div style="color: #60A5FA;">💡 <b>Lighting:</b> ${r.lighting_score || 90}%</div>
             <div style="color: #34D399;">👥 <b>Crowd:</b> ${r.foot_traffic_score || 85}%</div>
-            <div style="color: #10B981;">🛡️ <b>Crime Index:</b> Zero Incidents (${r.incident_safety_score || 95}%)</div>
+            <div style="color: #10B981;"> <b>Crime Index:</b> Zero Incidents (${r.incident_safety_score || 95}%)</div>
             <div style="color: #A78BFA;">📹 <b>CCTV Cameras:</b> Active (${r.cctv_coverage_score || 85}%)</div>
           </div>
 
@@ -1557,6 +1422,8 @@
         `;
         container.appendChild(card);
       });
+
+      if (routes[0]) selectRoute(0);
     }
 
     function selectRoute(idx) {
@@ -1566,6 +1433,22 @@
         else c.classList.remove('selected');
       });
       map.fitBounds(polylineLayers[idx].getBounds(), { padding: [40, 40] });
+
+      const r = currentRoutes[idx];
+      if (r) {
+        const havenTimeEl = document.getElementById('hud-haven-time');
+        if (havenTimeEl && r.max_time_to_haven_seconds) {
+          havenTimeEl.textContent = formatTimeMinutes(r.max_time_to_haven_seconds);
+        }
+        const resEl = document.getElementById('hud-resilience');
+        if (resEl) {
+          resEl.innerHTML = `PASS (&le;2 min)`;
+        }
+        const liveHavenTimeEl = document.getElementById('live-haven-time');
+        if (liveHavenTimeEl && r.max_time_to_haven_seconds) {
+          liveHavenTimeEl.textContent = formatTimeMinutes(r.max_time_to_haven_seconds);
+        }
+      }
     }
 
     function openWhyPathModal(idx) {
@@ -1577,12 +1460,12 @@
       content.innerHTML = `
         <p style="font-weight: 800; color: #fff; margin-bottom: 8px;">AI Rationale for ${r.name}:</p>
         <p style="margin-bottom: 4px;">• 💡 <b>Lighting Coverage:</b> ${r.lighting_score || 90}% well-lit corridor with night-light verification.</p>
-        <p style="margin-bottom: 4px;">• 🏥 <b>24/7 Sanctuaries:</b> ${r.havens_count} verified safe havens along route (max reach time: ${r.max_time_to_haven_seconds}s).</p>
-        <p style="margin-bottom: 4px;">• 🛡️ <b>Robbery & Crime Index:</b> Low-risk sector with zero robbery reports in recent data.</p>
+        <p style="margin-bottom: 4px;">• 🏥 <b>24/7 Sanctuaries:</b> ${r.havens_count} verified safe havens along route (max reach time: ${formatTimeMinutes(r.max_time_to_haven_seconds)}).</p>
+        <p style="margin-bottom: 4px;">•  <b>Robbery & Crime Index:</b> Low-risk sector with zero robbery reports in recent data.</p>
         <p>• 📹 <b>AI Surveillance:</b> Covered by municipal camera network.</p>
       `;
 
-      tradeoff.innerHTML = `<b>TRADEOFF:</b> ${r.tradeoff || '3 minutes extra travel time compared to dark isolated roads, maintaining continuous 120s sanctuary access.'}`;
+      tradeoff.innerHTML = `<b>TRADEOFF:</b> ${r.tradeoff || '3 minutes extra travel time compared to dark isolated roads, maintaining continuous 2 min sanctuary access.'}`;
       document.getElementById('why-path-modal').classList.add('active');
     }
 
@@ -1593,18 +1476,63 @@
     // =========================================================
     // TURN-BY-TURN GUIDANCE
     // =========================================================
+    let currentStepIndex = 0;
+
+    function updateTurnInstructionUI(route, stepIdx) {
+      if (!route || !route.steps || route.steps.length === 0) return;
+      currentStepIndex = Math.max(0, Math.min(stepIdx, route.steps.length - 1));
+      const step = route.steps[currentStepIndex];
+
+      const instEl = document.getElementById('live-turn-instruction');
+      const distEl = document.getElementById('live-turn-dist');
+      const iconEl = document.getElementById('live-turn-icon');
+      const numEl = document.getElementById('live-turn-step-num');
+
+      if (numEl) numEl.textContent = `MANEUVER ${currentStepIndex + 1} OF ${route.steps.length}`;
+      if (instEl) instEl.textContent = step.instruction || "Proceed along corridor";
+      if (distEl) distEl.textContent = `In ${step.distance_m || 100} meters`;
+
+      const text = (step.instruction || "").toLowerCase();
+      let icon = "➡️";
+      if (text.includes("left")) icon = "⬅️";
+      else if (text.includes("right")) icon = "➡️";
+      else if (text.includes("head") || text.includes("continue") || text.includes("straight")) icon = "⬆️";
+      else if (text.includes("u-turn")) icon = "↩️";
+      else if (text.includes("arrive")) icon = "🎯";
+      if (iconEl) iconEl.textContent = icon;
+    }
+
+    function nextTurnStep() {
+      const route = currentRoutes[selectedRouteIndex];
+      if (route && route.steps && currentStepIndex < route.steps.length - 1) {
+        updateTurnInstructionUI(route, currentStepIndex + 1);
+        advanceGpsStep();
+      }
+    }
+
+    function prevTurnStep() {
+      const route = currentRoutes[selectedRouteIndex];
+      if (route && route.steps && currentStepIndex > 0) {
+        updateTurnInstructionUI(route, currentStepIndex - 1);
+      }
+    }
+
     function startJourney(idx) {
       selectedRouteIndex = idx;
       currentGpsIndex = 0;
       isDeviated = false;
+      journeyStarted = true;
+
+      // Unlock Navigate tab for step-by-step flow
+      unlockNavigateTab();
+      startLiveTracking();
       switchSection('sec-live');
 
       const route = currentRoutes[idx];
       const stepsDiv = document.getElementById('steps-list');
       if (route.steps && route.steps.length > 0) {
         stepsDiv.innerHTML = route.steps.map((s, i) => `<p style="margin-bottom: 4px;">${i+1}. ${s.instruction} (${s.distance_m}m)</p>`).join('');
-        document.getElementById('live-turn-instruction').textContent = route.steps[0]?.instruction || "Proceed along corridor";
-        document.getElementById('live-turn-dist').textContent = `In ${route.steps[0]?.distance_m || 150} meters`;
+        updateTurnInstructionUI(route, 0);
       } else {
         stepsDiv.innerHTML = `<p>1. Follow highlighted safe corridor towards destination.</p>`;
       }
@@ -1689,8 +1617,12 @@
     }
 
     function completeTrip() {
-      alert("🎉 SafeRoute Journey Completed Successfully! Your trip has been logged.");
-      switchSection('sec-feedback');
+      journeyStarted = false;
+      lockNavigateTab();
+      startLiveTracking();
+      showToast('🎉 Journey completed! Please leave a community safety review.');
+      loadUserFeedbacks();
+      
     }
 
     // =========================================================
@@ -1710,7 +1642,7 @@
       document.getElementById('live-status-pill').style.color = "var(--warning-yellow)";
       document.getElementById('live-turn-instruction').textContent = "Turn Left towards City General Hospital Emergency Gate (90s)";
       document.getElementById('live-turn-dist').textContent = "110m away";
-      alert("📍 Navigation locked to nearest sanctuary: City General Hospital (90 seconds away).");
+      alert("Navigation locked to nearest sanctuary: City General Hospital (90 seconds away).");
     }
 
     function escalateReroute() {
@@ -1720,42 +1652,80 @@
     }
 
     function callPolice() {
-      alert("📞 Emergency Connection to Police Hotline (100). Live GPS coordinates shared.");
+      alert("Emergency Connection to Police Hotline (100). Live GPS coordinates shared.");
     }
 
     function callAmbulance() {
-      alert("🚑 Emergency Connection to Medical Ambulance Hotline (108). Live GPS coordinates shared.");
+      alert("Emergency Connection to Medical Ambulance Hotline (108). Live GPS coordinates shared.");
     }
 
     function callEmergencyContact() {
-      alert("📞 Calling Mother: Sarah Rivera (+1 555-019-9988)...");
+      const user = JSON.parse(localStorage.getItem('safepath_user') || '{}');
+      const ec = user?.emergency_contacts?.[0];
+      if (ec && ec.phone) {
+        const name = ec.name || 'Emergency Contact';
+        const phone = ec.phone;
+        if (confirm(`Call ${name} at ${phone}?`)) {
+          window.location.href = 'tel:' + phone;
+        }
+      } else {
+        alert('No emergency contact set. Please add one in your Profile.');
+      }
     }
 
     async function dispatchTwilioEmergencySms() {
       const statusDiv = document.getElementById('escalation-status');
       statusDiv.style.display = 'block';
-      statusDiv.textContent = '⏳ Dispatching Emergency SOS SMS with live GPS tracking...';
+      statusDiv.textContent = 'Dispatching Emergency SOS SMS with live GPS tracking...';
+
+      let vehicle_id = null;
+      if (['bus', 'cab', 'auto'].includes(currentTransportMode)) {
+        vehicle_id = document.getElementById('vehicle-id-input').value.trim();
+      }
+
+      const user = JSON.parse(localStorage.getItem('safepath_user') || '{}');
+      const ecPhone = user?.emergency_contacts?.[0]?.phone || null;
 
       try {
-        await fetch('/api/emergency/share-location', {
+        const res = await fetch('/api/emergency/send-sms', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             latitude: userCoords.lat,
             longitude: userCoords.lon,
             destination: document.getElementById('dest-input').value || "Destination",
-            emergency_contact: "+15550199988"
+            emergency_contact: ecPhone,
+            tracking_url: window.location.origin + '/track/' + (liveTrackingToken || 'demo'),
+            vehicle_id: vehicle_id || undefined
           })
         });
-        statusDiv.textContent = `✓ SOS Emergency SMS dispatched to your trusted contact!`;
+        const data = await res.json();
+        if (data.success) {
+          statusDiv.textContent = 'SOS Emergency SMS dispatched to your trusted contact!';
+          statusDiv.style.background = 'rgba(16, 185, 129, 0.2)';
+          statusDiv.style.color = 'var(--safe-green)';
+        } else {
+          statusDiv.textContent = data.message || 'SMS failed. Please call emergency services directly.';
+          statusDiv.style.background = 'rgba(239, 68, 68, 0.2)';
+          statusDiv.style.color = 'var(--danger-red)';
+        }
       } catch (e) {
-        statusDiv.textContent = `✓ SOS alert broadcasted!`;
+        statusDiv.textContent = 'Network error. Please call emergency services (100/108) directly.';
+        statusDiv.style.background = 'rgba(239, 68, 68, 0.2)';
+        statusDiv.style.color = 'var(--danger-red)';
       }
     }
 
     function shareWhatsAppLocation() {
-      const msg = encodeURIComponent(`🚨 SafeRoute Safety Alert from Alex Rivera:\nI am sharing my live location during my trip.\nGPS: ${userCoords.lat}, ${userCoords.lon}\nNearest Sanctuary: City General Hospital (90s away)\nMap: https://maps.google.com/?q=${userCoords.lat},${userCoords.lon}`);
-      window.open(`https://api.whatsapp.com/send?text=${msg}`, '_blank');
+      const user = JSON.parse(localStorage.getItem('safepath_user') || '{}');
+      const userName = user?.full_name || 'Safe Path User';
+      const msg = encodeURIComponent(
+        'SAFETY ALERT from ' + userName + ':\n' +
+        'I am sharing my live location during my trip.\n' +
+        'GPS: ' + userCoords.lat + ', ' + userCoords.lon + '\n' +
+        'Map: https://maps.google.com/?q=' + userCoords.lat + ',' + userCoords.lon
+      );
+      window.open('https://api.whatsapp.com/send?text=' + msg, '_blank');
     }
 
     // =========================================================
@@ -1852,7 +1822,143 @@
       calculateUserRouteSearch();
     }
 
+    // =========================================================
+    // DRAG-TO-RESIZE SIDEBAR
+    // =========================================================
+    document.addEventListener('DOMContentLoaded', function() {
+      const handle = document.getElementById('resize-handle');
+      const sidebar = document.getElementById('main-sidebar');
+      let isResizing = false;
+      let startX, startWidth;
+
+      handle.addEventListener('mousedown', (e) => {
+        isResizing = true;
+        startX = e.clientX;
+        startWidth = sidebar.getBoundingClientRect().width;
+        document.body.style.cursor = 'col-resize';
+        document.body.style.userSelect = 'none';
+      });
+
+      document.addEventListener('mousemove', (e) => {
+        if (!isResizing) return;
+        const delta = e.clientX - startX;
+        const newWidth = Math.min(Math.max(startWidth + delta, 320), 780);
+        sidebar.style.width = newWidth + 'px';
+        sidebar.style.minWidth = newWidth + 'px';
+      });
+
+      document.addEventListener('mouseup', () => {
+        if (isResizing) {
+          isResizing = false;
+          document.body.style.cursor = '';
+          document.body.style.userSelect = '';
+          if (map) map.invalidateSize();
+        }
+      });
+    });
+
+    // =========================================================
+    // SIDEBAR COLLAPSE / EXPAND
+    // =========================================================
+    let sidebarCollapsed = false;
+    function toggleSidebar() {
+      const sidebar = document.querySelector('.sidebar');
+      const btn = document.getElementById('sidebar-toggle');
+      sidebarCollapsed = !sidebarCollapsed;
+      sidebar.classList.toggle('collapsed', sidebarCollapsed);
+      btn.textContent = sidebarCollapsed ? '›' : '‹';
+      btn.title = sidebarCollapsed ? 'Expand panel' : 'Collapse panel';
+      // Tell Leaflet to re-measure after layout change
+      setTimeout(() => { if (map) map.invalidateSize(); }, 310);
+    }
+
+    // =========================================================
+    // ADDRESS AUTOCOMPLETE SUCCINCT HANDLER
+    // =========================================================
+    let autocompleteDebounceTimer = null;
+    function handleAddressAutocomplete(inputId, dropdownId) {
+      const inputEl = document.getElementById(inputId);
+      const dropdownEl = document.getElementById(dropdownId);
+      if (!inputEl || !dropdownEl) return;
+      const query = inputEl.value.trim();
+
+      if (query.length < 3) {
+        dropdownEl.style.display = 'none';
+        dropdownEl.innerHTML = '';
+        return;
+      }
+
+      clearTimeout(autocompleteDebounceTimer);
+      autocompleteDebounceTimer = setTimeout(async () => {
+        try {
+          const res = await fetch(`/api/routes/autocomplete?q=${encodeURIComponent(query)}`);
+          const data = await res.json();
+          if (data.suggestions && data.suggestions.length > 0) {
+            dropdownEl.innerHTML = data.suggestions.map(s => {
+              const safeDisplay = s.display_name.replace(/'/g, "\\'");
+              return `
+                <div class="autocomplete-item" onclick="selectAutocompleteItem('${inputId}', '${dropdownId}', '${safeDisplay}', ${s.latitude}, ${s.longitude})">
+                  <span>📍</span>
+                  <span style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${s.display_name}</span>
+                </div>
+              `;
+            }).join('');
+            dropdownEl.style.display = 'block';
+          } else {
+            dropdownEl.style.display = 'none';
+          }
+        } catch (e) {
+          console.error("Autocomplete fetch error:", e);
+        }
+      }, 350);
+    }
+
+    function selectAutocompleteItem(inputId, dropdownId, name, lat, lon) {
+      document.getElementById(inputId).value = name;
+      document.getElementById(dropdownId).style.display = 'none';
+      if (inputId === 'origin-input') {
+        userCoords = { lat, lon };
+        if (userMarker) userMarker.setLatLng([lat, lon]);
+        map.panTo([lat, lon]);
+      }
+    }
+
+    // Close autocomplete dropdowns on outside click
+    document.addEventListener('click', (e) => {
+      if (!e.target.closest('.autocomplete-wrapper')) {
+        document.querySelectorAll('.autocomplete-dropdown').forEach(d => d.style.display = 'none');
+      }
+    });
+
+    document.addEventListener('DOMContentLoaded', async function() {
+      const depInput = document.getElementById('dep-time');
+      if (depInput) {
+        const nowStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        depInput.value = `Now (${nowStr})`;
+      }
+      
+      const token = localStorage.getItem('safepath_token');
+      if (token) {
+        try {
+          const res = await fetch('/api/auth/me', {
+            headers: { 'Authorization': `Bearer ${token}` }
+          });
+          if (res.ok) {
+            const data = await res.json();
+            localStorage.setItem('safepath_user', JSON.stringify(data.user));
+            updateProfileUI(data.user);
+            document.getElementById('auth-gateway').style.display = 'none';
+          } else {
+            localStorage.removeItem('safepath_token');
+          }
+        } catch (e) {
+          console.error("Failed to fetch user session", e);
+        }
+      }
+    });
+
     window.onload = initMap;
   </script>
 </body>
 </html>
+

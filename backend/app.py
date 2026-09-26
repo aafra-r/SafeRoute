@@ -21,6 +21,7 @@ from backend.routes.geocoding_routes import geocoding_bp
 from backend.routes.settings_routes import settings_bp
 from backend.routes.dataset_routes import dataset_bp
 from backend.routes.feedback_routes import feedback_bp
+from backend.routes.track_routes import track_bp
 
 def create_app(config_class=Config):
     app = Flask(__name__, template_folder='templates', static_folder='static')
@@ -44,7 +45,6 @@ def create_app(config_class=Config):
     app.register_blueprint(settings_bp)
     app.register_blueprint(dataset_bp)
     app.register_blueprint(feedback_bp)
-    from backend.routes.track_routes import track_bp
     app.register_blueprint(track_bp)
 
     # Root Web Route: Real-Time Mobile & Web Application
