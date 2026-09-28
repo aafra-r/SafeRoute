@@ -1011,23 +1011,7 @@
       if (card) {
         card.style.borderLeftColor = status === 'RED' ? 'var(--danger-red)' : (status === 'YELLOW' ? 'var(--warning-yellow)' : 'var(--safe-green)');
       }
-    }
-
-  <!-- LEAFLET & JAVASCRIPT LOGIC -->
-  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-  <script>
-    let map, userMarker, routePolylines = [], havenMarkers = [], sanctuaryPolyline = null;
-    let userCoords = { lat: 10.7905, lon: 78.7047 };
-    let calculatedRoutes = [];
-    let selectedRouteIndex = 0;
-    let currentTransportMode = 'personal_vehicle';
-    let autocompleteDebounceTimer = null;
-    let liveTrackingActive = false;
-    let currentStepIndex = 0;
-    let currentJourneyId = null;
-    let latestHavenInfo = null;
-    let gpsWatchId = null;
-    let navSteps = [];         // Active navigation step list
+    }    let navSteps = [];         // Active navigation step list
     let navTotalSteps = 0;
     let navTotalDistM = 0;
     let panelRouteIndex = -1;  // Which route index is shown in the map panel
