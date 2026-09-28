@@ -303,10 +303,11 @@
       position: absolute;
       top: 18px;
       right: 18px;
-      z-index: 1000;
+      z-index: 2500;
+      pointer-events: auto;
       display: flex;
       gap: 12px;
-      background: rgba(15, 23, 42, 0.88);
+      background: rgba(15, 23, 42, 0.92);
       backdrop-filter: blur(14px);
       border: 1px solid var(--border-accent);
       padding: 10px 16px;
@@ -321,21 +322,30 @@
       position: absolute;
       top: 18px;
       left: 18px;
-      z-index: 1000;
+      z-index: 2500;
+      pointer-events: auto;
       display: flex;
       gap: 6px;
-      background: rgba(15, 23, 42, 0.88);
+      background: rgba(15, 23, 42, 0.95);
       backdrop-filter: blur(14px);
-      border: 1px solid var(--border-accent);
+      border: 1.5px solid var(--primary-light);
       padding: 6px;
       border-radius: 14px;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.6);
+    }
+    .floating-map-controls button {
+      position: relative;
+      z-index: 2501;
+      pointer-events: auto;
+      cursor: pointer;
     }
 
     .floating-sos-btn {
       position: absolute;
       bottom: 24px;
       right: 24px;
-      z-index: 1000;
+      z-index: 2500;
+      pointer-events: auto;
       background: linear-gradient(135deg, #EF4444, #B91C1C);
       color: #fff;
       border: none;
@@ -538,6 +548,10 @@
 
           <button class="btn" onclick="calculateUserRouteSearch()" id="calculate-btn">
             <span>Find Safest Path ›</span>
+          </button>
+          
+          <button class="btn btn-secondary" onclick="openVpsVisualViewModal()" style="margin-top: 8px; border: 1.5px solid var(--primary-light); color: var(--primary-light); background: rgba(59, 130, 246, 0.12);">
+            <span>👁️ Visual View (360° Street View)</span>
           </button>
         </div>
 
@@ -1157,6 +1171,18 @@
       userMarker = L.marker([userCoords.lat, userCoords.lon], { icon: userIcon }).addTo(map);
       loadLiveDataset();
       loadUserFeedbacks();
+      
+      // Prevent Leaflet map from swallowing click events on floating map controls & buttons
+      const mapControls = document.querySelector('.floating-map-controls');
+      if (mapControls) {
+        L.DomEvent.disableClickPropagation(mapControls);
+        L.DomEvent.disableScrollPropagation(mapControls);
+      }
+      const floatingHud = document.querySelector('.floating-hud');
+      if (floatingHud) L.DomEvent.disableClickPropagation(floatingHud);
+      const sosBtn = document.querySelector('.floating-sos-btn');
+      if (sosBtn) L.DomEvent.disableClickPropagation(sosBtn);
+
       // Close map panel when clicking elsewhere on map
       map.on('click', () => closeMapRoutePanel());
     }
