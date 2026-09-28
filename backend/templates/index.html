@@ -2274,46 +2274,52 @@
     }
   }
 
-  // ── Determine best loading center ────────────────────────────────
-  function safetyMap_getCenter() {
-    // Prefer current Leaflet map center (reflects what user is looking at)
+  // ── Determine visible map bounds ──────────────────────────────────
+  function safetyMap_getBounds() {
     if (typeof map !== 'undefined' && map) {
-      var c = map.getCenter();
-      return { lat: c.lat, lon: c.lng };
+      var b = map.getBounds();
+      return { 
+        s: b.getSouth(), w: b.getWest(), 
+        n: b.getNorth(), e: b.getEast(),
+        center: map.getCenter()
+      };
     }
-    // Fall back to GPS position
+    // Fall back to GPS position with a fixed small bounding box (~1km)
+    var lat = 10.7905, lon = 78.7047;
     if (typeof userCoords !== 'undefined' && userCoords) {
-      return { lat: userCoords.lat, lon: userCoords.lng };
+      lat = userCoords.lat; lon = userCoords.lng;
     }
-    return { lat: 10.7905, lon: 78.7047 };
+    return {
+      s: lat - 0.01, w: lon - 0.01,
+      n: lat + 0.01, e: lon + 0.01,
+      center: { lat: lat, lng: lon }
+    };
   }
 
-  // ── Map pan/zoom handler (debounced 1.3 s) ───────────────────────
+  // ── Map pan/zoom handler (debounced) ─────────────────────────────
   function safetyMap_onMapMove() {
     if (!safetyMap_active) return;
     clearTimeout(safetyMap_panTimer);
     safetyMap_panTimer = setTimeout(function() {
-      var c = safetyMap_getCenter();
-      // Only reload if center moved > ~100 m (0.001°)
-      if (safetyMap_lastLat === null ||
-          Math.abs(c.lat - safetyMap_lastLat) > 0.001 ||
-          Math.abs(c.lon - safetyMap_lastLon) > 0.001) {
-        safetyMap_load(c.lat, c.lon);
-      }
+      safetyMap_loadBounds();
     }, 1300);
   }
 
   // ── Fetch actual road geometries + safety scores from backend ─────
-  function safetyMap_load(lat, lon) {
+  function safetyMap_loadBounds() {
     if (safetyMap_isLoading) return;
     safetyMap_isLoading = true;
-    safetyMap_lastLat   = lat;
-    safetyMap_lastLon   = lon;
+    
+    var b = safetyMap_getBounds();
+    safetyMap_lastLat = b.center.lat;
+    safetyMap_lastLon = b.center.lng;
 
     var btn = document.getElementById('safety-map-mode-btn');
     if (btn) btn.textContent = '🛡️ Loading…';
 
-    fetch('/api/safety-map/roads?lat=' + lat + '&lon=' + lon + '&radius_km=0.8')
+    var url = '/api/safety-map/roads?s=' + b.s + '&w=' + b.w + '&n=' + b.n + '&e=' + b.e;
+
+    fetch(url)
       .then(function(r) {
         if (!r.ok) throw new Error('HTTP ' + r.status);
         return r.json();
@@ -2328,7 +2334,10 @@
         }
         var roads = data.roads || [];
         if (roads.length === 0) {
-          safetyMap_showErrPanel('No road data available for this area. Try panning the map.');
+          safetyMap_showErrPanel(
+            'Individual road-level safety data is currently unavailable because the live Overpass API timed out or found no roads in this specific area.<br><br>' +
+            'Real OpenStreetMap road geometry and Live Environmental data are required to map this properly.'
+          );
           return;
         }
         safetyMap_drawRoads(roads);
@@ -2337,7 +2346,10 @@
         safetyMap_isLoading = false;
         if (btn) btn.textContent = '🛡️ Safety Map ✓';
         console.error('[SafetyMap] fetch error:', err);
-        safetyMap_showErrPanel('Could not load safety data. Check connection and retry.');
+        safetyMap_showErrPanel(
+          'Individual road-level safety data is currently unavailable because the network connection to the OpenStreetMap API failed.<br><br>' +
+          'Real road geometry data from OSM is required to implement it properly.'
+        );
       });
   }
 

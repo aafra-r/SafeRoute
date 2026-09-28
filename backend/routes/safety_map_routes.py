@@ -224,49 +224,78 @@ def _centroid_of(geometry: list) -> tuple:
 @safety_map_bp.route('/roads', methods=['GET'])
 def get_safety_roads():
     """
-    GET /api/safety-map/roads?lat=<lat>&lon=<lon>&radius_km=<r>
+    GET /api/safety-map/roads?s=<s>&w=<w>&n=<n>&e=<e>
 
-    Returns actual OSM road way geometries, each scored by the existing
-    SafetyScoringEngine + EnvironmentalService pipeline.
-
-    Response shape:
-    {
-      "roads": [
-        {
-          "id": <osm_way_id>,
-          "name": "...",
-          "highway": "residential",
-          "geometry": [[lat,lon], ...],
-          "centroid": {"lat":..., "lon":...},
-          "safety_score": 72,
-          "risk_label": "Moderate Risk",
-          "colour": "#F59E0B",
-          "confidence": "HIGH",
-          "factors": { "lighting": 95, "crime_safety": 98, ... },
-          "summary_badges": [...]
-        }, ...
-      ],
-      "count": <int>,
-      "center": {"lat":..., "lon":...},
-      "radius_km": <float>,
-      "data_source": "..."
-    }
+    Returns actual OSM road way geometries for the bounding box.
     """
     try:
-        lat       = float(request.args.get('lat',       0))
-        lon       = float(request.args.get('lon',       0))
-        radius_km = float(request.args.get('radius_km', 0.8))
+        s = float(request.args.get('s', 0))
+        w = float(request.args.get('w', 0))
+        n = float(request.args.get('n', 0))
+        e = float(request.args.get('e', 0))
     except (TypeError, ValueError):
-        return jsonify({"error": "Invalid parameters. Provide lat, lon, and optional radius_km."}), 400
+        # Fallback to lat/lon/radius if provided instead
+        try:
+            lat       = float(request.args.get('lat', 10.7905))
+            lon       = float(request.args.get('lon', 78.7047))
+            radius_km = float(request.args.get('radius_km', 0.8))
+            R = 6371.0
+            n = lat + (radius_km / R) * (180 / math.pi)
+            s = lat - (radius_km / R) * (180 / math.pi)
+            e = lon + (radius_km / (R * math.cos(math.radians(lat)))) * (180 / math.pi)
+            w = lon - (radius_km / (R * math.cos(math.radians(lat)))) * (180 / math.pi)
+        except:
+            return jsonify({"error": "Invalid bounding box."}), 400
 
-    if not (-90 <= lat <= 90 and -180 <= lon <= 180):
+    if not (-90 <= s <= 90 and -180 <= w <= 180):
         return jsonify({"error": "Coordinates out of range."}), 400
 
-    radius_km = max(0.3, min(1.5, radius_km))
-    radius_m  = int(radius_km * 1000)
+    # Ensure bounding box isn't dangerously huge (max ~10km across)
+    max_diff = 0.1  # ~11km
+    n = min(n, s + max_diff)
+    e = min(e, w + max_diff)
 
-    # Step 1: Fetch real road geometries from OpenStreetMap
-    ways = _fetch_osm_roads(lat, lon, radius_m)
+    # For very large areas, only fetch major roads to avoid Overpass timeout
+    area_diff = (n - s) + (e - w)
+    if area_diff > 0.05:  # approx > 5km
+        hw_filter = "motorway|trunk|primary|secondary|tertiary"
+    else:
+        hw_filter = "|".join(_HIGHWAY_TYPES)
+
+    cache_key = (round(s, 3), round(w, 3), round(n, 3), round(e, 3))
+    now = _time.time()
+    
+    ways = []
+    if cache_key in _ROAD_CACHE and now - _ROAD_CACHE[cache_key]["ts"] < _CACHE_TTL:
+        ways = _ROAD_CACHE[cache_key]["ways"]
+    else:
+        # Bounding box format: (south, west, north, east)
+        query = (
+            f'[out:json][timeout:8];\n'
+            f'way[highway~"^({hw_filter})$"]({s},{w},{n},{e});\n'
+            f'out geom;'
+        )
+        for url in _OSM_ENDPOINTS:
+            try:
+                resp = _requests.post(url, data={"data": query}, headers=_OSM_HEADERS, timeout=4.5)
+                if resp.status_code == 200:
+                    for el in resp.json().get("elements", []):
+                        if el.get("type") != "way": continue
+                        geom = el.get("geometry", [])
+                        if len(geom) < 2: continue
+                        ways.append({
+                            "id":       el["id"],
+                            "name":     el.get("tags", {}).get("name", ""),
+                            "highway":  el.get("tags", {}).get("highway", "road"),
+                            "geometry": [[g["lat"], g["lon"]] for g in geom],
+                        })
+                    break
+            except Exception as exc:
+                print(f"[SafetyMap] Overpass {url} error: {exc}")
+
+        _ROAD_CACHE[cache_key] = {"ways": ways, "ts": now}
+    
+    ways = _ROAD_CACHE[cache_key]["ways"]
 
     # Step 2: Score each road via existing safety pipeline
     features = []
