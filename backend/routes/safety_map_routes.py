@@ -322,11 +322,15 @@ def get_safety_roads():
             "summary_badges": seg["summary_badges"],
         })
 
+    # Calculate center for response if not set by fallback
+    c_lat = (s + n) / 2
+    c_lon = (w + e) / 2
+
     return jsonify({
         "roads":       features,
         "count":       len(features),
-        "center":      {"lat": lat, "lon": lon},
-        "radius_km":   radius_km,
+        "center":      {"lat": c_lat, "lon": c_lon},
+        "radius_km":   round(max(n - s, e - w) * 111 / 2, 2),  # Approx radius for response compat
         "data_source": "OpenStreetMap (Overpass) + SafeRoute XGBoost Safety Engine",
     })
 
