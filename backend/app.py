@@ -5,7 +5,7 @@ BASE_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
 if BASE_DIR not in sys.path:
     sys.path.insert(0, BASE_DIR)
 
-from flask import Flask, jsonify, render_template
+from flask import Flask, jsonify, render_template, make_response
 from flask_cors import CORS
 from backend.config import Config
 from backend.database.db import db
@@ -51,11 +51,14 @@ def create_app(config_class=Config):
     app.register_blueprint(feedback_bp)
     app.register_blueprint(track_bp)
     app.register_blueprint(vps_bp)
-
     # Root Web Route: Real-Time Mobile & Web Application
     @app.route('/')
     def index():
-        return render_template('index.html')
+        resp = make_response(render_template('index.html'))
+        resp.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate, max-age=0'
+        resp.headers['Pragma'] = 'no-cache'
+        resp.headers['Expires'] = '0'
+        return resp
 
     # Global Error Handlers
     @app.errorhandler(404)
