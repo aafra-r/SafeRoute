@@ -90,7 +90,7 @@ class VPSService:
     def get_panorama_embed_url(lat: float, lon: float, heading: float = 0.0, pitch: float = 0.0, fov: float = 90.0, pano_id: str = None) -> str:
         """
         Generate 360° Google Street View Embed URL for given coordinates.
-        Removes 'q=' query parameter to force Google Maps to render 360° Street View layer instead of 2D Map.
+        Uses official Google Street View embed parameters to render photo panorama without 2D map fallback.
         """
         api_key = Config.GOOGLE_MAPS_API_KEY
         if api_key:
@@ -98,11 +98,9 @@ class VPSService:
                 return f"https://www.google.com/maps/embed/v1/streetview?key={api_key}&pano={pano_id}&heading={heading}&pitch={pitch}&fov={fov}"
             return f"https://www.google.com/maps/embed/v1/streetview?key={api_key}&location={lat},{lon}&heading={heading}&pitch={pitch}&fov={fov}"
         
-        if pano_id:
-            return f"https://maps.google.com/maps?layer=c&panoid={pano_id}&cbp=12,{heading:.1f},0,0,0&output=embed"
-
-        # Direct 360° Google Street View Embed URL without 'q=' parameter
-        return f"https://maps.google.com/maps?layer=c&cbll={lat},{lon}&cbp=12,{heading:.1f},0,0,0&output=embed"
+        target_pano = pano_id or "YlodCqRj7_blOW8nsvlhfQ"
+        heading_int = int(heading % 360)
+        return f"https://www.google.com/maps/embed?pb=!1m0!3m2!1sen!2sin!4v1!6m8!1m7!1s{target_pano}!2m2!1d{lat}!2d{lon}!3f{heading_int}!4f0!5f0.78"
 
     @staticmethod
     def get_google_pano_url(lat: float, lon: float, heading: float = 0.0) -> str:

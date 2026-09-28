@@ -958,14 +958,14 @@
       const iframe = document.getElementById('vps-streetview-iframe');
       if (!container) return;
 
-      const directEmbedUrl = panoId 
-        ? `https://maps.google.com/maps?layer=c&panoid=${panoId}&cbp=12,${heading},0,0,0&output=embed`
-        : `https://maps.google.com/maps?layer=c&cbll=${lat},${lng}&cbp=12,${heading},0,0,0&output=embed`;
+      const targetPano = panoId || 'YlodCqRj7_blOW8nsvlhfQ';
+      const headingInt = Math.round((heading + 360) % 360);
+      const directEmbedUrl = `https://www.google.com/maps/embed?pb=!1m0!3m2!1sen!2sin!4v1!6m8!1m7!1s${targetPano}!2m2!1d${lat}!2d${lng}!3f${headingInt}!4f0!5f0.78`;
 
       if (window.google && window.google.maps && window.google.maps.StreetViewPanorama) {
         try {
           const svService = new google.maps.StreetViewService();
-          const query = panoId ? { pano: panoId } : { location: { lat, lng }, radius: 100 };
+          const query = panoId ? { pano: panoId } : { location: { lat, lng }, radius: 200 };
           svService.getPanorama(query, (data, status) => {
             if (status === google.maps.StreetViewStatus.OK && data && data.location) {
               if (iframe) iframe.style.display = 'none';
