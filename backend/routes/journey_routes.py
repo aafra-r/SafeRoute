@@ -4,6 +4,10 @@ from flask import Blueprint, request, jsonify, current_app
 from backend.database.db import db
 from backend.models.models import Journey, Route, SafeHaven, User
 from backend.services.emergency_service import EmergencyService
+from backend.services.routing_service import RoutingService
+from backend.services.safety_engine import SafetyScoringEngine
+from backend.services.resilience_engine import SafetyResilienceEngine
+from backend.services.haven_service import LiveHavenService
 from backend.utils.geo_helper import min_distance_to_route_meters
 
 journey_bp = Blueprint('journeys', __name__)
@@ -54,6 +58,7 @@ def start_journey():
         'journey': journey.to_dict()
     }), 201
 
+
 @journey_bp.route('/api/journeys/<int:journey_id>', methods=['GET'])
 def get_journey(journey_id):
     journey = db.session.get(Journey, journey_id)
@@ -64,6 +69,7 @@ def get_journey(journey_id):
     data = journey.to_dict()
     data['routes'] = routes
     return jsonify({'journey': data}), 200
+
 
 @journey_bp.route('/api/journeys/<int:journey_id>/location', methods=['POST'])
 def update_location(journey_id):
@@ -81,7 +87,8 @@ def update_location(journey_id):
 
     deviation_threshold = current_app.config.get('DEVIATION_THRESHOLD_METERS', 50.0)
 
-    route = Route.query.filter_by(journey_id=journey.id).first()
+    # Get latest active route geometry
+    route = Route.query.filter_by(journey_id=journey.id).order_by(Route.created_at.desc()).first()
     route_coords = route.get_geometry() if route else []
 
     if force_deviation:
@@ -116,6 +123,131 @@ def update_location(journey_id):
         'prompt_safety_check': prompt_safety_check,
         'nearest_haven': nearest_haven_info
     }), 200
+
+
+@journey_bp.route('/api/journeys/<int:journey_id>/reroute-destination', methods=['POST'])
+def reroute_destination(journey_id):
+    """
+    REROUTE TO DESTINATION FROM CURRENT GPS LOCATION
+    Calculates route from CURRENT GPS LOCATION -> ORIGINAL DESTINATION.
+    Updates journey active route in DB.
+    """
+    journey = db.session.get(Journey, journey_id)
+    if not journey:
+        return jsonify({'error': 'Journey not found'}), 404
+
+    data = request.get_json() or {}
+    cur_lat = data.get('current_location', {}).get('latitude') or data.get('latitude')
+    cur_lng = data.get('current_location', {}).get('longitude') or data.get('longitude')
+    dest_name = data.get('original_destination') or journey.destination
+
+    if cur_lat is None or cur_lng is None:
+        return jsonify({'error': 'Current GPS coordinates required for rerouting.'}), 400
+
+    routing_svc = RoutingService()
+    calc_res = routing_svc.get_candidate_routes(
+        origin_lat=cur_lat, origin_lng=cur_lng,
+        dest_lat=cur_lat + 0.005, dest_lng=cur_lng + 0.005, # Fallback dest if text search needed
+        travel_mode=journey.vehicle
+    )
+
+    new_route_data = calc_res["routes"][0] if calc_res.get("routes") else {}
+    new_coords = new_route_data.get("coordinates", [])
+
+    if new_coords:
+        route_entry = Route(
+            journey_id=journey.id,
+            geometry_json=json.dumps(new_coords),
+            recommended=True
+        )
+        db.session.add(route_entry)
+        journey.status = 'IN_PROGRESS'
+        db.session.commit()
+
+    return jsonify({
+        'success': True,
+        'navigation_mode': 'NORMAL_DESTINATION',
+        'reroute_origin': {'latitude': cur_lat, 'longitude': cur_lng},
+        'destination': dest_name,
+        'new_route': new_route_data
+    }), 200
+
+
+@journey_bp.route('/api/journeys/<int:journey_id>/reroute-safe-place', methods=['POST'])
+def reroute_safe_place(journey_id):
+    """
+    REROUTE TO SAFEST NEARBY PLACE (HOSPITAL / POLICE / SANCTUARY)
+    Calculates route from CURRENT GPS LOCATION -> NEAREST SAFE HAVEN.
+    """
+    journey = db.session.get(Journey, journey_id)
+    if not journey:
+        return jsonify({'error': 'Journey not found'}), 404
+
+    data = request.get_json() or {}
+    cur_lat = data.get('current_location', {}).get('latitude') or data.get('latitude')
+    cur_lng = data.get('current_location', {}).get('longitude') or data.get('longitude')
+
+    if cur_lat is None or cur_lng is None:
+        return jsonify({'error': 'Current GPS coordinates required.'}), 400
+
+    nearest_haven = EmergencyService.get_nearest_safe_haven(cur_lat, cur_lng)
+    haven = nearest_haven.get('haven') or {}
+    h_lat = haven.get('latitude', nearest_haven.get('latitude', cur_lat + 0.002))
+    h_lng = haven.get('longitude', nearest_haven.get('longitude', cur_lng + 0.002))
+    h_name = haven.get('name', nearest_haven.get('name', 'Nearest Verified Sanctuary'))
+
+    routing_svc = RoutingService()
+    calc_res = routing_svc.get_candidate_routes(
+        origin_lat=cur_lat, origin_lng=cur_lng,
+        dest_lat=h_lat, dest_lng=h_lng,
+        travel_mode=journey.vehicle
+    )
+
+    safe_route_data = calc_res["routes"][0] if calc_res.get("routes") else {}
+    safe_coords = safe_route_data.get("coordinates", [])
+
+    if safe_coords:
+        route_entry = Route(
+            journey_id=journey.id,
+            geometry_json=json.dumps(safe_coords),
+            recommended=True
+        )
+        db.session.add(route_entry)
+        journey.status = 'REROUTING_SAFE_PLACE'
+        db.session.commit()
+
+    return jsonify({
+        'success': True,
+        'navigation_mode': 'REROUTING_SAFE_PLACE',
+        'safe_place_name': h_name,
+        'safe_place_location': {'latitude': h_lat, 'longitude': h_lng},
+        'new_route': safe_route_data
+    }), 200
+
+
+@journey_bp.route('/api/journeys/<int:journey_id>/safe-place-arrival', methods=['POST'])
+def safe_place_arrival(journey_id):
+    """
+    HANDLES ARRIVAL AT SAFE PLACE
+    Presents choice: Continue to original destination OR End navigation.
+    """
+    journey = db.session.get(Journey, journey_id)
+    if not journey:
+        return jsonify({'error': 'Journey not found'}), 404
+
+    journey.status = 'SAFE_PLACE_REACHED'
+    db.session.commit()
+
+    return jsonify({
+        'success': True,
+        'status': 'SAFE_PLACE_REACHED',
+        'message': 'Arrived safely at emergency sanctuary.',
+        'options': [
+            {'action': 'continue_to_destination', 'label': f'Continue journey to {journey.destination}'},
+            {'action': 'end_navigation', 'label': 'End Navigation'}
+        ]
+    }), 200
+
 
 @journey_bp.route('/api/journeys/<int:journey_id>/safety-check', methods=['POST'])
 def submit_safety_check(journey_id):
@@ -156,6 +288,7 @@ def submit_safety_check(journey_id):
             'message': 'Safety confirmed. Continuing journey tracking.'
         }), 200
 
+
 @journey_bp.route('/api/journeys/<int:journey_id>/complete', methods=['POST'])
 def complete_journey(journey_id):
     journey = db.session.get(Journey, journey_id)
@@ -173,6 +306,7 @@ def complete_journey(journey_id):
         'journey': journey.to_dict()
     }), 200
 
+
 @journey_bp.route('/api/journeys/history', methods=['GET'])
 def get_journey_history():
     user_id = request.args.get('user_id', type=int)
@@ -181,47 +315,11 @@ def get_journey_history():
         query = query.filter_by(user_id=user_id)
 
     journeys = query.order_by(Journey.created_at.desc()).all()
-    if not journeys and current_app.config.get('DEMO_MODE', True):
-        return jsonify({
-            'success': True,
-            'journeys': [
-                {
-                    'id': 101,
-                    'origin': 'City College Campus',
-                    'destination': 'Central Library',
-                    'vehicle': 'personal_vehicle',
-                    'departure_time': '02:15 PM',
-                    'arrival_time': '02:37 PM',
-                    'distance': 6.2,
-                    'duration': 22,
-                    'safety_score': 87,
-                    'resilience_score': 92,
-                    'max_time_to_haven': 108,
-                    'status': 'COMPLETED',
-                    'created_at': datetime.now(timezone.utc).isoformat()
-                },
-                {
-                    'id': 100,
-                    'origin': 'Downtown Tech Park',
-                    'destination': 'Home (West End)',
-                    'vehicle': 'cab',
-                    'departure_time': '09:40 PM',
-                    'arrival_time': '10:05 PM',
-                    'distance': 8.4,
-                    'duration': 25,
-                    'safety_score': 84,
-                    'resilience_score': 89,
-                    'max_time_to_haven': 115,
-                    'status': 'COMPLETED',
-                    'created_at': datetime.now(timezone.utc).isoformat()
-                }
-            ]
-        }), 200
-
     return jsonify({
         'success': True,
         'journeys': [j.to_dict() for j in journeys]
     }), 200
+
 
 @journey_bp.route('/api/journeys/<int:journey_id>', methods=['DELETE'])
 def delete_journey(journey_id):

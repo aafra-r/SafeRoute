@@ -47,6 +47,16 @@ class AIAssistantService:
         time_match = re.search(r'(?:by|at|around|before)\s+(\d{1,2}(?::\d{2})?\s*(?:am|pm)?)', text, re.IGNORECASE)
         arrival_time = time_match.group(1).upper() if time_match else "Now"
 
+        # Extract Origin (from X to Y)
+        origin = "Current Location"
+        from_match = re.search(
+            r'(?:from|starting at|start at)\s+([a-zA-Z0-9\s]+?)\s+(?:to|towards)',
+            text,
+            re.IGNORECASE
+        )
+        if from_match:
+            origin = from_match.group(1).strip().title()
+
         # Extract Destination
         destination = "Central Library"
         dest_patterns = [
@@ -64,16 +74,14 @@ class AIAssistantService:
 
         if "library" in text:
             destination = "Central Library"
-        elif "college" in text:
-            destination = "City College Campus"
-        elif "hospital" in text:
+        elif "hospital" in text and "college" not in text:
             destination = "City General Hospital"
 
         return {
             "parsed": True,
             "source": "SafeRoute Deterministic Rule Engine",
             "destination": destination,
-            "origin": "Current Location",
+            "origin": origin,
             "arrival_time": arrival_time,
             "departure_time": "Now",
             "safety_preference": safety_preference,

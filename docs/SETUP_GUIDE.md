@@ -33,7 +33,7 @@ python demo_cli.py
 
 ---
 
-## 4. Primary Hackathon Demonstration Flow
+## 4. Primary Hackathon Demonstration Flow (judge-winning path)
 1. **Home Screen**:
    - Origin: `College Gate`
    - Destination: `Central Library`
@@ -56,6 +56,12 @@ python demo_cli.py
    - Direct sanctuary routing opens to **City General Hospital (90s away, 110m)**.
    - Test **"CALL POLICE (100)"**, **"CALL AMBULANCE (108)"**, and **"SHARE LIVE LOCATION"**.
 6. **AI Assistant**:
-   - Click **"AI ✨"** in top banner or bottom nav.
-   - Enter *"I need to reach college by 10 AM and I want a safer route."*
-   - See instant structured parameter extraction.
+   - Click **"AI ✨"** in the bottom nav.
+   - Enter *"Is it safe to walk from College Gate to Central Library at 10 PM? I want the safest route."*
+   - The assistant extracts origin/destination/preference and **automatically calculates scored routes**.
+
+## 5. Judge talking points (keep this tight)
+- Conventional maps optimize time. Safe Path scores **lighting, incidents, crowd, CCTV, and time-to-haven**.
+- Recommendation is **explainable** (Why This Path? + XGBoost feature weights).
+- Live loop is real: journey record → GPS step → deviation API → safety check → sanctuary reroute.
+- Emergency SMS is Twilio-ready; without keys it still completes the demo as a simulated dispatch.

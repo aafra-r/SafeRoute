@@ -6,7 +6,7 @@ assistant_bp = Blueprint('assistant', __name__)
 @assistant_bp.route('/api/assistant/parse', methods=['POST'])
 def parse_travel_intent():
     data = request.get_json() or {}
-    prompt = data.get('prompt', '').strip()
+    prompt = (data.get('prompt') or data.get('user_input') or data.get('query') or '').strip()
 
     if not prompt:
         return jsonify({

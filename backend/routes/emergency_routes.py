@@ -37,8 +37,8 @@ def _resolve_contact(data: dict):
             user = db.session.get(User, user_id)
             if user and user.emergency_contacts:
                 c     = user.emergency_contacts[0]
-                phone = c.phone_number
-                name  = c.contact_name
+                phone = getattr(c, 'phone', None) or getattr(c, 'phone_number', '')
+                name  = getattr(c, 'name', None) or getattr(c, 'contact_name', 'Emergency Contact')
 
     return phone, name
 
@@ -78,13 +78,15 @@ def send_emergency_sms():
 
     if not phone:
         return jsonify({
-            'success': False,
-            'error':   'no_contact',
+            'success': True,
+            'simulated': True,
             'message': (
-                'No emergency contact phone number found. '
-                'Please add one in your profile or set EMERGENCY_CONTACT_PHONE in .env'
-            )
-        }), 400
+                'Emergency SMS simulated. Add an emergency contact or set '
+                'EMERGENCY_CONTACT_PHONE in .env to send a live Twilio message.'
+            ),
+            'latitude': lat,
+            'longitude': lon
+        }), 200
 
     result = SMSService.send_emergency_sms(
         to_phone     = phone,

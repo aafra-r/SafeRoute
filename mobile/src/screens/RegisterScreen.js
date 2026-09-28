@@ -12,6 +12,9 @@ export const RegisterScreen = ({ navigation }) => {
   const [phone, setPhone] = useState('+91 ');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+  const [emergencyName, setEmergencyName] = useState('');
+  const [emergencyPhone, setEmergencyPhone] = useState('+91 ');
+  const [emergencyRel, setEmergencyRel] = useState('Parent');
   const [showPassword, setShowPassword] = useState(false);
   const [termsAccepted, setTermsAccepted] = useState(false);
   const [error, setError] = useState('');
@@ -26,6 +29,10 @@ export const RegisterScreen = ({ navigation }) => {
   const handleRegister = async () => {
     if (!fullName.trim() || !email.trim() || !password) {
       setError('Please fill in all required fields (Name, Email, Password).');
+      return;
+    }
+    if (!emergencyName.trim() || !emergencyPhone.trim()) {
+      setError('Please provide your Primary Emergency Contact Name & Number.');
       return;
     }
     if (!termsAccepted) {
@@ -48,6 +55,9 @@ export const RegisterScreen = ({ navigation }) => {
       phone: phone.trim(),
       password,
       confirm_password: confirmPassword,
+      emergency_contact_name: emergencyName.trim(),
+      emergency_contact_phone: emergencyPhone.trim(),
+      emergency_contact_rel: emergencyRel,
       terms_accepted: termsAccepted
     });
 
@@ -151,6 +161,44 @@ export const RegisterScreen = ({ navigation }) => {
               {password === confirmPassword ? '✔ Passwords match' : '✖ Passwords do not match'}
             </Text>
           ) : null}
+        </View>
+
+        <View style={{ borderTopWidth: 1, borderTopColor: COLORS.border, marginVertical: 14, paddingTop: 10 }}>
+          <Text style={[styles.label, { color: COLORS.primaryLight }]}>PRIMARY EMERGENCY CONTACT *</Text>
+        </View>
+
+        <View style={styles.inputGroup}>
+          <Text style={styles.label}>Emergency Contact Name *</Text>
+          <TextInput
+            style={styles.input}
+            value={emergencyName}
+            onChangeText={setEmergencyName}
+            placeholder="e.g. Sarah Rivera"
+            placeholderTextColor={COLORS.textMuted}
+          />
+        </View>
+
+        <View style={styles.inputGroup}>
+          <Text style={styles.label}>Emergency Contact Phone *</Text>
+          <TextInput
+            style={styles.input}
+            value={emergencyPhone}
+            onChangeText={setEmergencyPhone}
+            placeholder="+91 9876543210"
+            placeholderTextColor={COLORS.textMuted}
+            keyboardType="phone-pad"
+          />
+        </View>
+
+        <View style={styles.inputGroup}>
+          <Text style={styles.label}>Relationship *</Text>
+          <TextInput
+            style={styles.input}
+            value={emergencyRel}
+            onChangeText={setEmergencyRel}
+            placeholder="e.g. Parent, Spouse, Sibling, Friend, Guardian"
+            placeholderTextColor={COLORS.textMuted}
+          />
         </View>
 
         <TouchableOpacity

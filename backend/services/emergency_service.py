@@ -23,9 +23,13 @@ class EmergencyService:
         and computes estimated travel time.
         """
         if safe_havens is None:
-            # Query from database
-            db_havens = SafeHaven.query.all()
-            safe_havens = [h.to_dict() for h in db_havens]
+            from backend.services.haven_service import LiveHavenService
+            safe_havens = LiveHavenService.get_havens_for_location(
+                current_lat, current_lon, radius_km=5.0
+            )
+            if not safe_havens:
+                db_havens = SafeHaven.query.all()
+                safe_havens = [h.to_dict() for h in db_havens]
 
         if not safe_havens:
             return {
