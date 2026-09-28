@@ -87,17 +87,22 @@ class VPSService:
         }
 
     @staticmethod
-    def get_panorama_embed_url(lat: float, lon: float, heading: float = 0.0, pitch: float = 0.0, fov: float = 90.0) -> str:
+    def get_panorama_embed_url(lat: float, lon: float, heading: float = 0.0, pitch: float = 0.0, fov: float = 90.0, pano_id: str = None) -> str:
         """
         Generate 360° Google Street View Embed URL for given coordinates.
-        Supports iframe embedding without SAMEORIGIN blocking.
+        Removes 'q=' query parameter to force Google Maps to render 360° Street View layer instead of 2D Map.
         """
         api_key = Config.GOOGLE_MAPS_API_KEY
         if api_key:
+            if pano_id:
+                return f"https://www.google.com/maps/embed/v1/streetview?key={api_key}&pano={pano_id}&heading={heading}&pitch={pitch}&fov={fov}"
             return f"https://www.google.com/maps/embed/v1/streetview?key={api_key}&location={lat},{lon}&heading={heading}&pitch={pitch}&fov={fov}"
         
-        # Standard Google Maps 360° Street View Direct Embed URL (No X-Frame-Options restriction)
-        return f"https://maps.google.com/maps?q={lat},{lon}&layer=c&cbll={lat},{lon}&cbp=12,{heading:.1f},0,0,0&output=embed"
+        if pano_id:
+            return f"https://maps.google.com/maps?layer=c&panoid={pano_id}&cbp=12,{heading:.1f},0,0,0&output=embed"
+
+        # Direct 360° Google Street View Embed URL without 'q=' parameter
+        return f"https://maps.google.com/maps?layer=c&cbll={lat},{lon}&cbp=12,{heading:.1f},0,0,0&output=embed"
 
     @staticmethod
     def get_google_pano_url(lat: float, lon: float, heading: float = 0.0) -> str:

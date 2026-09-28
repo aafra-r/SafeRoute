@@ -920,7 +920,7 @@
     let vpsTotalSteppedMeters = 0;
     let googleStreetViewPanoramaInstance = null;
 
-    async function openVpsVisualViewModal(targetLat = null, targetLon = null) {
+    async function openVpsVisualViewModal(targetLat = null, targetLon = null, panoId = null) {
       const modal = document.getElementById('vps-visual-modal');
       const coordsLabel = document.getElementById('vps-coords-label');
       const locationTitle = document.getElementById('vps-location-title');
@@ -931,34 +931,42 @@
         vpsCurrentLat = targetLat;
         vpsCurrentLon = targetLon;
       } else {
-        vpsCurrentLat = (userCoords && userCoords.lat != null) ? userCoords.lat : 10.7905;
-        vpsCurrentLon = (userCoords && userCoords.lon != null) ? userCoords.lon : 78.7047;
+        vpsCurrentLat = (userCoords && userCoords.lat != null) ? userCoords.lat : 10.7905286;
+        vpsCurrentLon = (userCoords && userCoords.lon != null) ? userCoords.lon : 78.7047077;
         vpsTotalSteppedMeters = 0;
       }
 
       modal.style.display = 'flex';
 
       const originInputVal = document.getElementById('origin-input')?.value?.trim();
-      const currentLocText = originInputVal || `Location (${vpsCurrentLat.toFixed(4)}, ${vpsCurrentLon.toFixed(4)})`;
+      const currentLocText = originInputVal || `Location (${vpsCurrentLat.toFixed(5)}, ${vpsCurrentLon.toFixed(5)})`;
       if (locationTitle) locationTitle.textContent = currentLocText;
       if (coordsLabel) coordsLabel.textContent = `GPS: ${vpsCurrentLat.toFixed(5)}° N, ${vpsCurrentLon.toFixed(5)}° E • ${currentLocText}`;
       if (steppedLabel) steppedLabel.textContent = `📍 Corridor Position: ${vpsTotalSteppedMeters >= 0 ? '+' : ''}${vpsTotalSteppedMeters}m from origin`;
 
-      const googlePanoUrl = `https://www.google.com/maps/@?api=1&map_action=pano&viewpoint=${vpsCurrentLat},${vpsCurrentLon}&heading=${currentVpsHeading}`;
+      let googlePanoUrl = `https://www.google.com/maps/@?api=1&map_action=pano&viewpoint=${vpsCurrentLat},${vpsCurrentLon}&heading=${currentVpsHeading}`;
+      if (panoId) {
+        googlePanoUrl = `https://www.google.com/maps/@${vpsCurrentLat},${vpsCurrentLon},3a,75y,${currentVpsHeading}h,90t/data=!3m7!1e1!3m5!1s${panoId}`;
+      }
       if (directBtn) directBtn.href = googlePanoUrl;
 
-      renderGoogleStreetViewPano(vpsCurrentLat, vpsCurrentLon, currentVpsHeading);
+      renderGoogleStreetViewPano(vpsCurrentLat, vpsCurrentLon, currentVpsHeading, panoId);
     }
 
-    function renderGoogleStreetViewPano(lat, lng, heading = 0) {
+    function renderGoogleStreetViewPano(lat, lng, heading = 0, panoId = null) {
       const container = document.getElementById('vps-panorama-container');
       const iframe = document.getElementById('vps-streetview-iframe');
       if (!container) return;
 
+      const directEmbedUrl = panoId 
+        ? `https://maps.google.com/maps?layer=c&panoid=${panoId}&cbp=12,${heading},0,0,0&output=embed`
+        : `https://maps.google.com/maps?layer=c&cbll=${lat},${lng}&cbp=12,${heading},0,0,0&output=embed`;
+
       if (window.google && window.google.maps && window.google.maps.StreetViewPanorama) {
         try {
           const svService = new google.maps.StreetViewService();
-          svService.getPanorama({ location: { lat, lng }, radius: 100 }, (data, status) => {
+          const query = panoId ? { pano: panoId } : { location: { lat, lng }, radius: 100 };
+          svService.getPanorama(query, (data, status) => {
             if (status === google.maps.StreetViewStatus.OK && data && data.location) {
               if (iframe) iframe.style.display = 'none';
               const targetPos = data.location.latLng;
@@ -980,7 +988,7 @@
             } else {
               if (iframe) {
                 iframe.style.display = 'block';
-                iframe.src = `https://maps.google.com/maps?q=${lat},${lng}&layer=c&cbll=${lat},${lng}&cbp=12,${heading},0,0,0&output=embed`;
+                iframe.src = directEmbedUrl;
               }
             }
           });
@@ -990,7 +998,7 @@
 
       if (iframe) {
         iframe.style.display = 'block';
-        iframe.src = `https://maps.google.com/maps?q=${lat},${lng}&layer=c&cbll=${lat},${lng}&cbp=12,${heading},0,0,0&output=embed`;
+        iframe.src = directEmbedUrl;
       }
     }
 
