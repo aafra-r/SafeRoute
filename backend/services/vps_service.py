@@ -89,14 +89,15 @@ class VPSService:
     @staticmethod
     def get_panorama_embed_url(lat: float, lon: float, heading: float = 0.0, pitch: float = 0.0, fov: float = 90.0) -> str:
         """
-        Generate 360° Google Street View Embed URL and direct Pano URL for given coordinates.
+        Generate 360° Google Street View Embed URL for given coordinates.
+        Supports iframe embedding without SAMEORIGIN blocking.
         """
         api_key = Config.GOOGLE_MAPS_API_KEY
         if api_key:
             return f"https://www.google.com/maps/embed/v1/streetview?key={api_key}&location={lat},{lon}&heading={heading}&pitch={pitch}&fov={fov}"
         
-        # Standard Google Maps Street View Direct Pano URL & Embed
-        return f"https://www.google.com/maps/@?api=1&map_action=pano&viewpoint={lat},{lon}&heading={heading:.1f}"
+        # Standard Google Maps 360° Street View Direct Embed URL (No X-Frame-Options restriction)
+        return f"https://maps.google.com/maps?q={lat},{lon}&layer=c&cbll={lat},{lon}&cbp=12,{heading:.1f},0,0,0&output=embed"
 
     @staticmethod
     def get_google_pano_url(lat: float, lon: float, heading: float = 0.0) -> str:
@@ -108,13 +109,14 @@ class VPSService:
     @staticmethod
     def get_static_streetview_url(lat: float, lon: float, heading: float = 0.0, pitch: float = 0.0) -> str:
         """
-        Generate 360° Street View Static Equirectangular image URL for in-modal WebGL panorama rendering.
+        Generate 360° Street View embed URL or static preview imagery URL.
         """
         api_key = Config.GOOGLE_MAPS_API_KEY
         if api_key:
             return f"https://maps.googleapis.com/maps/api/streetview?size=1200x800&location={lat},{lon}&heading={heading:.1f}&pitch={pitch:.1f}&fov=90&key={api_key}"
         
-        # High quality 360° street view imagery fallback
-        return f"https://images.unsplash.com/photo-1519501025264-65ba15a82390?auto=format&fit=crop&w=1200&q=80"
+        return f"https://maps.google.com/maps?q={lat},{lon}&layer=c&cbll={lat},{lon}&cbp=12,{heading:.1f},0,0,0&output=embed"
+
+
 
 

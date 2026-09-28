@@ -18,42 +18,45 @@ export const VisualPositioningModal = ({
   location = null,
   destinationName = 'Destination'
 }) => {
-  const [loading, setLoading] = useState(true);
-  const [vpsData, setVpsData] = useState(null);
   const [heading, setHeading] = useState(0.0);
-  const [error, setError] = useState(null);
+  const [steppedMeters, setSteppedMeters] = useState(0);
+  
+  const baseLat = location?.latitude || 10.7905;
+  const baseLon = location?.longitude || 78.7047;
 
-  const lat = location?.latitude || 12.9716;
-  const lon = location?.longitude || 77.5946;
+  const [currentLat, setCurrentLat] = useState(baseLat);
+  const [currentLon, setCurrentLon] = useState(baseLon);
 
   useEffect(() => {
     if (visible) {
-      fetchMetadata(heading);
+      setCurrentLat(baseLat);
+      setCurrentLon(baseLon);
+      setSteppedMeters(0);
+      setHeading(0.0);
     }
-  }, [visible, lat, lon]);
+  }, [visible, baseLat, baseLon]);
 
-  const fetchMetadata = async (h = 0.0) => {
-    setLoading(true);
-    setError(null);
-    try {
-      const data = await ApiService.getVpsMetadata(lat, lon, h);
-      setVpsData(data);
-      if (!data.available) {
-        setError(data.message || '360° visual coverage is unavailable at this location.');
-      }
-    } catch (e) {
-      setError('360° visual coverage is unavailable at this location.');
-    } finally {
-      setLoading(false);
-    }
+  const stepPosition = (distanceMeters) => {
+    setSteppedMeters(prev => prev + distanceMeters);
+    const rad = heading * (Math.PI / 180);
+    const deltaLat = (distanceMeters * Math.cos(rad)) / 111000;
+    const deltaLon = (distanceMeters * Math.sin(rad)) / (111000 * Math.cos(currentLat * (Math.PI / 180)));
+    setCurrentLat(prev => prev + deltaLat);
+    setCurrentLon(prev => prev + deltaLon);
   };
 
-  const changeHeading = (newHeading) => {
-    setHeading(newHeading);
-    fetchMetadata(newHeading);
+  const rotateHeading = (deltaDegrees) => {
+    setHeading(prev => (prev + deltaDegrees + 360) % 360);
   };
 
-  const embedUrl = vpsData?.embed_url || `https://maps.google.com/maps?q=&layer=c&cbll=${lat},${lon}&cbp=11,${heading},0,0,0&output=embed`;
+  const resetPosition = () => {
+    setCurrentLat(baseLat);
+    setCurrentLon(baseLon);
+    setHeading(0.0);
+    setSteppedMeters(0);
+  };
+
+  const embedUrl = `https://maps.google.com/maps?q=${currentLat},${currentLon}&layer=c&cbll=${currentLat},${currentLon}&cbp=12,${heading},0,0,0&output=embed`;
 
   return (
     <Modal
@@ -72,7 +75,7 @@ export const VisualPositioningModal = ({
             </View>
             <Text style={styles.headerTitle}>Street-Level Surroundings</Text>
             <Text style={styles.headerCoords}>
-              GPS: {lat.toFixed(5)}°, {lon.toFixed(5)}° • En route to {destinationName}
+              GPS: {currentLat.toFixed(5)}°, {currentLon.toFixed(5)}° • En route to {destinationName}
             </Text>
           </View>
           <TouchableOpacity style={styles.closeBtn} onPress={onClose} activeOpacity={0.8}>
@@ -80,75 +83,46 @@ export const VisualPositioningModal = ({
           </TouchableOpacity>
         </View>
 
-        {/* Orientation Controls */}
+        {/* Directional Stepping Bar */}
         <View style={styles.orientationBar}>
-          <Text style={styles.orientationLabel}>CAMERA ANGLE:</Text>
-          <TouchableOpacity
-            style={[styles.angleBtn, heading === 0 && styles.angleBtnActive]}
-            onPress={() => changeHeading(0)}
-          >
-            <Text style={[styles.angleText, heading === 0 && styles.angleTextActive]}>⬆️ North</Text>
+          <TouchableOpacity style={[styles.angleBtn, { backgroundColor: COLORS.safeGreen }]} onPress={() => stepPosition(15)}>
+            <Text style={[styles.angleText, { color: '#FFF' }]}>⬆️ +15m</Text>
           </TouchableOpacity>
-          <TouchableOpacity
-            style={[styles.angleBtn, heading === 90 && styles.angleBtnActive]}
-            onPress={() => changeHeading(90)}
-          >
-            <Text style={[styles.angleText, heading === 90 && styles.angleTextActive]}>➡️ East</Text>
+          <TouchableOpacity style={[styles.angleBtn, { backgroundColor: COLORS.warningYellow }]} onPress={() => stepPosition(-15)}>
+            <Text style={[styles.angleText, { color: '#FFF' }]}>⬇️ -15m</Text>
           </TouchableOpacity>
-          <TouchableOpacity
-            style={[styles.angleBtn, heading === 180 && styles.angleBtnActive]}
-            onPress={() => changeHeading(180)}
-          >
-            <Text style={[styles.angleText, heading === 180 && styles.angleTextActive]}>⬇️ South</Text>
+          <TouchableOpacity style={styles.angleBtn} onPress={() => rotateHeading(-45)}>
+            <Text style={styles.angleText}>↺ Left</Text>
           </TouchableOpacity>
-          <TouchableOpacity
-            style={[styles.angleBtn, heading === 270 && styles.angleBtnActive]}
-            onPress={() => changeHeading(270)}
-          >
-            <Text style={[styles.angleText, heading === 270 && styles.angleTextActive]}>⬅️ West</Text>
+          <TouchableOpacity style={styles.angleBtn} onPress={() => rotateHeading(45)}>
+            <Text style={styles.angleText}>↻ Right</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={[styles.angleBtn, { backgroundColor: 'transparent', borderWidth: 1, borderColor: '#334155' }]} onPress={resetPosition}>
+            <Text style={styles.angleText}>🧭 Reset</Text>
           </TouchableOpacity>
         </View>
 
         {/* Content Area */}
         <View style={styles.content}>
-          {loading && (
-            <View style={styles.centerContainer}>
-              <ActivityIndicator size="large" color={COLORS.primaryLight} />
-              <Text style={styles.loadingText}>Fetching 360° Visual Positioning imagery…</Text>
-            </View>
-          )}
-
-          {!loading && error && (
-            <View style={styles.errorContainer}>
-              <Text style={styles.errorIcon}>📡</Text>
-              <Text style={styles.errorTitle}>Visual Coverage Unavailable</Text>
-              <Text style={styles.errorText}>{error}</Text>
-              <TouchableOpacity style={styles.returnButton} onPress={onClose}>
-                <Text style={styles.returnButtonText}>Return to Normal Map Navigation</Text>
-              </TouchableOpacity>
-            </View>
-          )}
-
-          {!loading && !error && (
-            <WebView
-              source={{ uri: embedUrl }}
-              style={styles.webview}
-              javaScriptEnabled={true}
-              domStorageEnabled={true}
-              startInLoadingState={true}
-              renderLoading={() => (
-                <View style={styles.centerContainer}>
-                  <ActivityIndicator size="large" color={COLORS.primaryLight} />
-                </View>
-              )}
-            />
-          )}
+          <WebView
+            source={{ uri: embedUrl }}
+            style={styles.webview}
+            javaScriptEnabled={true}
+            domStorageEnabled={true}
+            startInLoadingState={true}
+            renderLoading={() => (
+              <View style={styles.centerContainer}>
+                <ActivityIndicator size="large" color={COLORS.primaryLight} />
+                <Text style={styles.loadingText}>Fetching 360° Visual Positioning imagery…</Text>
+              </View>
+            )}
+          />
         </View>
 
         {/* Bottom Safety Info Bar */}
         <View style={styles.bottomBar}>
           <Text style={styles.bottomText}>
-            💡 Interactive 360° Google Visual View • Drag to inspect surroundings & safety lighting.
+            💡 Interactive 360° Google Visual View • Drag to inspect surroundings & tap +15m / Turn to move on road ({steppedMeters >= 0 ? '+' : ''}{steppedMeters}m).
           </Text>
         </View>
       </SafeAreaView>

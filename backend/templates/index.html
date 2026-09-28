@@ -851,54 +851,42 @@
 
   <!-- 4. VISUAL POSITIONING SYSTEM (360° STREET VIEW) MODAL -->
   <div id="vps-visual-modal" class="modal-overlay">
-    <div class="modal-card" style="width: 860px; max-width: 95vw; height: 85vh; padding: 0; overflow: hidden; display: flex; flex-direction: column; text-align: left; background: #070A12; border-color: var(--primary-light);">
+    <div class="modal-card" style="width: 880px; max-width: 95vw; height: 88vh; padding: 0; overflow: hidden; display: flex; flex-direction: column; text-align: left; background: #070A12; border-color: var(--primary-light);">
       <!-- Modal Header -->
-      <div style="background: #0F172A; padding: 14px 20px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap;">
+      <div style="background: #0F172A; padding: 12px 18px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap;">
         <div>
           <div style="display: flex; align-items: center; gap: 8px;">
             <span style="font-size: 11px; font-weight: 800; color: var(--primary-light);">👁️ 360° VISUAL POSITIONING SYSTEM</span>
-            <span style="font-size: 9px; font-weight: 800; color: var(--safe-green);">● LIVE GPS</span>
+            <span style="font-size: 9px; font-weight: 800; color: var(--safe-green);">● ACCURATE GPS LOCATION</span>
           </div>
-          <h3 style="font-size: 16px; font-weight: 800; color: #fff; margin-top: 2px;">Street-Level Visual Surroundings</h3>
-          <p style="font-size: 11px; color: var(--text-muted);" id="vps-coords-label">GPS Coordinates: 10.7905°, 78.7047°</p>
+          <h3 style="font-size: 15px; font-weight: 800; color: #fff; margin-top: 2px;" id="vps-location-title">Current GPS Location</h3>
+          <p style="font-size: 11px; color: var(--text-muted);" id="vps-coords-label">GPS: 10.79050° N, 78.70470° E • Safe Route Corridor</p>
         </div>
         <div style="display: flex; gap: 8px; align-items: center;">
-          <a id="vps-direct-pano-btn" href="#" target="_blank" class="btn btn-success" style="width: auto; padding: 8px 14px; font-size: 11.5px; text-decoration: none;">🌐 Launch Google Maps 360° ↗</a>
-          <button class="btn btn-secondary" style="width: auto; padding: 8px 14px; font-size: 11.5px;" onclick="closeVpsVisualModal()">Return to Map Navigation 🗺️</button>
+          <a id="vps-direct-pano-btn" href="#" target="_blank" class="btn btn-success" style="width: auto; padding: 7px 12px; font-size: 11px; text-decoration: none;">🌐 Google Maps 360° ↗</a>
+          <button class="btn btn-secondary" style="width: auto; padding: 7px 12px; font-size: 11px;" onclick="closeVpsVisualModal()">Return to Map 🗺️</button>
         </div>
       </div>
 
-      <!-- Orientation Angle Controls -->
-      <div style="background: #0B1120; padding: 8px 16px; border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 8px;">
-        <span style="font-size: 10px; font-weight: 800; color: var(--text-muted);">CAMERA DIRECTION:</span>
-        <button class="btn btn-secondary" style="padding: 5px 10px; font-size: 10.5px; flex: 1;" onclick="setVpsHeading(0)">⬆️ North (0°)</button>
-        <button class="btn btn-secondary" style="padding: 5px 10px; font-size: 10.5px; flex: 1;" onclick="setVpsHeading(90)">➡️ East (90°)</button>
-        <button class="btn btn-secondary" style="padding: 5px 10px; font-size: 10.5px; flex: 1;" onclick="setVpsHeading(180)">⬇️ South (180°)</button>
-        <button class="btn btn-secondary" style="padding: 5px 10px; font-size: 10.5px; flex: 1;" onclick="setVpsHeading(270)">⬅️ West (270°)</button>
+      <!-- Navigation Stepping & Direction Control Bar -->
+      <div style="background: #0B1120; padding: 8px 14px; border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
+        <span style="font-size: 10px; font-weight: 800; color: var(--primary-light); margin-right: 4px;">MOVE ON ROAD:</span>
+        <button class="btn btn-success" style="padding: 5px 10px; font-size: 10.5px; flex: 1.2;" onclick="stepVpsPosition(15)">⬆️ Walk Forward (+15m)</button>
+        <button class="btn btn-warning" style="padding: 5px 10px; font-size: 10.5px; flex: 1.2;" onclick="stepVpsPosition(-15)">⬇️ Step Backward (-15m)</button>
+        <button class="btn btn-secondary" style="padding: 5px 10px; font-size: 10.5px; flex: 1;" onclick="rotateVpsHeading(-45)">↺ Turn Left</button>
+        <button class="btn btn-secondary" style="padding: 5px 10px; font-size: 10.5px; flex: 1;" onclick="rotateVpsHeading(45)">↻ Turn Right</button>
+        <button class="btn btn-outline" style="padding: 5px 10px; font-size: 10.5px;" onclick="resetVpsPosition()">🧭 Reset GPS</button>
       </div>
 
-      <!-- Panorama WebGL Container (Zero Iframe, No Cross-Origin Blocking) -->
+      <!-- Panorama Container (Zero Iframe Blocking, Official 360 Street View) -->
       <div style="flex: 1; position: relative; background: #000;">
-        <div id="vps-loading-overlay" style="position: absolute; inset: 0; background: #070A12; display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 10;">
-          <span style="font-size: 36px; margin-bottom: 10px;">👁️</span>
-          <p style="font-size: 13px; color: var(--text-muted);">Fetching 360° Visual Positioning imagery…</p>
-        </div>
-        <div id="vps-error-overlay" style="position: absolute; inset: 0; background: #070A12; display: none; flex-direction: column; align-items: center; justify-content: center; padding: 24px; text-align: center; z-index: 11;">
-          <span style="font-size: 44px; margin-bottom: 8px;">📡</span>
-          <h4 style="color: var(--warning-yellow); font-size: 17px; font-weight: 800; margin-bottom: 6px;">Visual Coverage Status</h4>
-          <p style="color: var(--text-muted); font-size: 12.5px; max-width: 440px; margin-bottom: 16px;" id="vps-error-msg">360° visual coverage is unavailable at this location.</p>
-          <div style="display:flex; gap:10px;">
-            <a id="vps-fallback-direct-link" href="#" target="_blank" class="btn btn-success" style="width: auto; padding: 10px 18px; text-decoration: none;">🌐 Open Google Street View App ↗</a>
-            <button class="btn btn-secondary" style="width: auto; padding: 10px 18px;" onclick="closeVpsVisualModal()">Return to Normal Map Navigation</button>
-          </div>
-        </div>
-        <div id="vps-panorama-container" style="width: 100%; height: 100%; background: #000;"></div>
+        <iframe id="vps-streetview-iframe" src="" style="width: 100%; height: 100%; border: 0;" allowfullscreen loading="lazy" referrerpolicy="no-referrer-when-downgrade"></iframe>
       </div>
 
       <!-- Modal Footer -->
       <div style="background: #0F172A; padding: 8px 16px; border-top: 1px solid var(--border); font-size: 11px; color: var(--text-muted); display: flex; justify-content: space-between; align-items: center;">
-        <span>💡 Interactive 360° Visual View • Drag to inspect street lighting & surroundings</span>
-        <span style="color: var(--primary-light);">📍 Active Navigation Safe Corridor</span>
+        <span>💡 Interactive 360° Visual View • Drag mouse or tap Walk Forward / Turn buttons to move on road</span>
+        <span style="color: var(--primary-light);" id="vps-stepped-label">📍 Corridor Position: 0m</span>
       </div>
     </div>
   </div>
@@ -909,85 +897,82 @@
     let map, userMarker, routePolylines = [], havenMarkers = [], sanctuaryPolyline = null;
     let userCoords = { lat: 10.7905, lon: 78.7047 }; // Default coordinates
     let currentVpsHeading = 0.0;
-    let pannellumViewerInstance = null;
+    let vpsCurrentLat = null;
+    let vpsCurrentLon = null;
+    let vpsTotalSteppedMeters = 0;
 
-    async function openVpsVisualViewModal() {
+    async function openVpsVisualViewModal(targetLat = null, targetLon = null) {
       const modal = document.getElementById('vps-visual-modal');
-      const loader = document.getElementById('vps-loading-overlay');
-      const errorOverlay = document.getElementById('vps-error-overlay');
       const coordsLabel = document.getElementById('vps-coords-label');
+      const locationTitle = document.getElementById('vps-location-title');
       const directBtn = document.getElementById('vps-direct-pano-btn');
-      const fallbackBtn = document.getElementById('vps-fallback-direct-link');
+      const steppedLabel = document.getElementById('vps-stepped-label');
+      const iframe = document.getElementById('vps-streetview-iframe');
+
+      if (targetLat != null && targetLon != null) {
+        vpsCurrentLat = targetLat;
+        vpsCurrentLon = targetLon;
+      } else {
+        vpsCurrentLat = (userCoords && userCoords.lat != null) ? userCoords.lat : 10.7905;
+        vpsCurrentLon = (userCoords && userCoords.lon != null) ? userCoords.lon : 78.7047;
+        vpsTotalSteppedMeters = 0;
+      }
 
       modal.style.display = 'flex';
-      loader.style.display = 'flex';
-      errorOverlay.style.display = 'none';
-      coordsLabel.textContent = `GPS Coordinates: ${userCoords.lat.toFixed(5)}°, ${userCoords.lon.toFixed(5)}°`;
 
-      const googlePanoUrl = `https://www.google.com/maps/@?api=1&map_action=pano&viewpoint=${userCoords.lat},${userCoords.lon}&heading=${currentVpsHeading}`;
+      const originInputVal = document.getElementById('origin-input')?.value?.trim();
+      const currentLocText = originInputVal || `Location (${vpsCurrentLat.toFixed(4)}, ${vpsCurrentLon.toFixed(4)})`;
+      if (locationTitle) locationTitle.textContent = currentLocText;
+      if (coordsLabel) coordsLabel.textContent = `GPS: ${vpsCurrentLat.toFixed(5)}° N, ${vpsCurrentLon.toFixed(5)}° E • ${currentLocText}`;
+      if (steppedLabel) steppedLabel.textContent = `📍 Corridor Position: ${vpsTotalSteppedMeters >= 0 ? '+' : ''}${vpsTotalSteppedMeters}m from origin`;
+
+      const googlePanoUrl = `https://www.google.com/maps/@?api=1&map_action=pano&viewpoint=${vpsCurrentLat},${vpsCurrentLon}&heading=${currentVpsHeading}`;
       if (directBtn) directBtn.href = googlePanoUrl;
-      if (fallbackBtn) fallbackBtn.href = googlePanoUrl;
 
-      try {
-        const res = await fetch(`/api/vps/metadata?lat=${userCoords.lat}&lon=${userCoords.lon}&heading=${currentVpsHeading}`);
-        const data = await res.json();
-        if (data.available) {
-          const imageUrl = data.static_image_url || 'https://images.unsplash.com/photo-1519501025264-65ba15a82390?auto=format&fit=crop&w=1200&q=80';
-          render360PannellumView(imageUrl, currentVpsHeading);
-          setTimeout(() => { loader.style.display = 'none'; }, 400);
-        } else {
-          loader.style.display = 'none';
-          errorOverlay.style.display = 'flex';
-          document.getElementById('vps-error-msg').textContent = data.message || "360° visual coverage is unavailable at this location.";
-        }
-      } catch (e) {
-        loader.style.display = 'none';
-        errorOverlay.style.display = 'flex';
-        document.getElementById('vps-error-msg').textContent = "360° visual coverage is unavailable at this location.";
+      const embedUrl = `https://maps.google.com/maps?q=${vpsCurrentLat},${vpsCurrentLon}&layer=c&cbll=${vpsCurrentLat},${vpsCurrentLon}&cbp=12,${currentVpsHeading},0,0,0&output=embed`;
+      if (iframe) {
+        iframe.src = embedUrl;
       }
     }
 
-    function render360PannellumView(imageUrl, heading = 0) {
-      const container = document.getElementById('vps-panorama-container');
-      if (!container) return;
-      if (pannellumViewerInstance) {
-        try { pannellumViewerInstance.destroy(); } catch (e) {}
-        pannellumViewerInstance = null;
-      }
-      container.innerHTML = '';
-      if (window.pannellum) {
-        pannellumViewerInstance = pannellum.viewer('vps-panorama-container', {
-          type: 'equirectangular',
-          panorama: imageUrl,
-          autoLoad: true,
-          showControls: true,
-          compass: true,
-          yaw: heading,
-          pitch: 0,
-          hfov: 100
-        });
-      } else {
-        container.innerHTML = `<img src="${imageUrl}" style="width:100%;height:100%;object-fit:cover;">`;
-      }
+    function stepVpsPosition(distanceMeters) {
+      if (vpsCurrentLat == null) vpsCurrentLat = (userCoords && userCoords.lat != null) ? userCoords.lat : 10.7905;
+      if (vpsCurrentLon == null) vpsCurrentLon = (userCoords && userCoords.lon != null) ? userCoords.lon : 78.7047;
+
+      vpsTotalSteppedMeters += distanceMeters;
+      const rad = currentVpsHeading * (Math.PI / 180);
+      const deltaLat = (distanceMeters * Math.cos(rad)) / 111000;
+      const deltaLon = (distanceMeters * Math.sin(rad)) / (111000 * Math.cos(vpsCurrentLat * (Math.PI / 180)));
+
+      vpsCurrentLat += deltaLat;
+      vpsCurrentLon += deltaLon;
+
+      openVpsVisualViewModal(vpsCurrentLat, vpsCurrentLon);
+    }
+
+    function rotateVpsHeading(deltaDegrees) {
+      currentVpsHeading = (currentVpsHeading + deltaDegrees + 360) % 360;
+      openVpsVisualViewModal(vpsCurrentLat, vpsCurrentLon);
+    }
+
+    function resetVpsPosition() {
+      vpsCurrentLat = (userCoords && userCoords.lat != null) ? userCoords.lat : 10.7905;
+      vpsCurrentLon = (userCoords && userCoords.lon != null) ? userCoords.lon : 78.7047;
+      vpsTotalSteppedMeters = 0;
+      currentVpsHeading = 0.0;
+      openVpsVisualViewModal(vpsCurrentLat, vpsCurrentLon);
     }
 
     function closeVpsVisualModal() {
-      document.getElementById('vps-visual-modal').style.display = 'none';
-      if (pannellumViewerInstance) {
-        try { pannellumViewerInstance.destroy(); } catch (e) {}
-        pannellumViewerInstance = null;
-      }
-      const container = document.getElementById('vps-panorama-container');
-      if (container) container.innerHTML = '';
+      const modal = document.getElementById('vps-visual-modal');
+      if (modal) modal.style.display = 'none';
+      const iframe = document.getElementById('vps-streetview-iframe');
+      if (iframe) iframe.src = 'about:blank';
     }
 
     function setVpsHeading(deg) {
       currentVpsHeading = deg;
-      if (pannellumViewerInstance) {
-        try { pannellumViewerInstance.setYaw(deg); } catch (e) {}
-      } else {
-        openVpsVisualViewModal();
-      }
+      openVpsVisualViewModal(vpsCurrentLat, vpsCurrentLon);
     }
     let calculatedRoutes = [];
     let selectedRouteIndex = 0;
@@ -1202,6 +1187,15 @@
       if (floatingHud) L.DomEvent.disableClickPropagation(floatingHud);
       const sosBtn = document.querySelector('.floating-sos-btn');
       if (sosBtn) L.DomEvent.disableClickPropagation(sosBtn);
+
+      // Explicitly disable click propagation on all VPS visual buttons
+      document.querySelectorAll('button[onclick*="openVpsVisualViewModal"]').forEach(btn => {
+        L.DomEvent.disableClickPropagation(btn);
+        L.DomEvent.on(btn, 'click', (e) => {
+          L.DomEvent.stopPropagation(e);
+          openVpsVisualViewModal();
+        });
+      });
 
       // Close map panel when clicking elsewhere on map
       map.on('click', () => closeMapRoutePanel());
