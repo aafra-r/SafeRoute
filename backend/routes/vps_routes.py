@@ -35,8 +35,10 @@ def get_vps_metadata():
         metadata = VPSService.get_streetview_metadata(lat, lon)
         embed_url = VPSService.get_panorama_embed_url(lat, lon, heading=heading, pitch=pitch)
         google_pano_url = VPSService.get_google_pano_url(lat, lon, heading=heading)
+        static_image_url = VPSService.get_static_streetview_url(lat, lon, heading=heading, pitch=pitch)
         metadata["embed_url"] = embed_url
         metadata["google_pano_url"] = google_pano_url
+        metadata["static_image_url"] = static_image_url
         metadata["heading"] = heading
         metadata["pitch"] = pitch
         return jsonify(metadata), 200

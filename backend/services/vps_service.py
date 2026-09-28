@@ -105,3 +105,16 @@ class VPSService:
         """
         return f"https://www.google.com/maps/@?api=1&map_action=pano&viewpoint={lat},{lon}&heading={heading:.1f}"
 
+    @staticmethod
+    def get_static_streetview_url(lat: float, lon: float, heading: float = 0.0, pitch: float = 0.0) -> str:
+        """
+        Generate 360° Street View Static Equirectangular image URL for in-modal WebGL panorama rendering.
+        """
+        api_key = Config.GOOGLE_MAPS_API_KEY
+        if api_key:
+            return f"https://maps.googleapis.com/maps/api/streetview?size=1200x800&location={lat},{lon}&heading={heading:.1f}&pitch={pitch:.1f}&fov=90&key={api_key}"
+        
+        # High quality 360° street view imagery fallback
+        return f"https://images.unsplash.com/photo-1519501025264-65ba15a82390?auto=format&fit=crop&w=1200&q=80"
+
+
