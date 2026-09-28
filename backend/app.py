@@ -54,7 +54,7 @@ def create_app(config_class=Config):
     # Root Web Route: Real-Time Mobile & Web Application
     @app.route('/')
     def index():
-        resp = make_response(render_template('index.html'))
+        resp = make_response(render_template('index.html', google_maps_api_key=Config.GOOGLE_MAPS_API_KEY))
         resp.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate, max-age=0'
         resp.headers['Pragma'] = 'no-cache'
         resp.headers['Expires'] = '0'
