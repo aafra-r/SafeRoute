@@ -717,6 +717,7 @@
       <button class="nav-tab-btn map-style-btn" data-style="satellite" onclick="setMapStyle('satellite')" style="padding: 6px 10px; font-size: 11px;">🛰️ Satellite</button>
       <button class="nav-tab-btn map-style-btn" data-style="streets" onclick="setMapStyle('streets')" style="padding: 6px 10px; font-size: 11px;">🗺️ Streets</button>
       <button class="nav-tab-btn" onclick="openVpsVisualViewModal()" style="padding: 6px 12px; font-size: 11px; color: var(--primary-light); background: rgba(59, 130, 246, 0.2); border: 1px solid var(--primary-light); border-radius: 8px;">👁️ Visual View (360°)</button>
+      <button id="safety-map-mode-btn" class="nav-tab-btn" onclick="safetyMap_toggle()" style="padding: 6px 12px; font-size: 11px; color: #A78BFA; background: rgba(167,139,250,0.15); border: 1px solid #A78BFA; border-radius: 8px;">🛡️ Safety Map</button>
     </div>
 
     <!-- Top Right Floating HUD -->
@@ -801,7 +802,57 @@
     </button>
   </div>
 
+  <!-- ===== SAFETY MAP MODE OVERLAYS (NEW — do not remove existing code) ===== -->
+
+  <!-- Safety Map Legend (bottom-left, visible only in Safety Map Mode) -->
+  <div id="safety-map-legend" style="display:none; position:fixed; bottom:28px; left:20px; z-index:1500; background:rgba(10,18,36,0.96); backdrop-filter:blur(14px); border:1.5px solid #334155; border-radius:14px; padding:12px 16px; min-width:190px; box-shadow:0 8px 32px rgba(0,0,0,0.6);">
+    <div style="font-size:11px; font-weight:800; color:#A78BFA; letter-spacing:0.8px; margin-bottom:8px;">🛡️ SAFETY MAP LEGEND</div>
+    <div style="display:flex; flex-direction:column; gap:5px; font-size:11.5px; color:#CBD5E1;">
+      <span><span style="display:inline-block;width:12px;height:12px;border-radius:50%;background:#22C55E;margin-right:7px;vertical-align:middle;"></span>🟢 Lower Risk (≥75)</span>
+      <span><span style="display:inline-block;width:12px;height:12px;border-radius:50%;background:#F59E0B;margin-right:7px;vertical-align:middle;"></span>🟡 Moderate Risk (55–74)</span>
+      <span><span style="display:inline-block;width:12px;height:12px;border-radius:50%;background:#EF4444;margin-right:7px;vertical-align:middle;"></span>🔴 Higher Risk (&lt;55)</span>
+    </div>
+    <div style="margin-top:10px; font-size:10px; color:#64748B; border-top:1px solid #1E293B; padding-top:6px;">
+      Tap any circle on the map to view safety details
+    </div>
+  </div>
+
+  <!-- Safety Map Segment Info Panel (bottom-center, shown when segment tapped) -->
+  <div id="safety-map-panel" style="display:none; position:fixed; bottom:28px; left:50%; transform:translateX(-50%); z-index:1500; background:rgba(10,18,36,0.97); backdrop-filter:blur(16px); border:1.5px solid #334155; border-radius:18px; padding:16px 20px; min-width:320px; max-width:400px; box-shadow:0 12px 40px rgba(0,0,0,0.7);">
+    <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:10px;">
+      <div>
+        <div id="smp-title" style="font-size:14px; font-weight:800; color:#fff;"></div>
+        <div id="smp-coords" style="font-size:10.5px; color:#64748B; margin-top:2px;"></div>
+      </div>
+      <button onclick="safetyMap_closePanel()" style="background:none; border:none; color:#94A3B8; font-size:18px; cursor:pointer; line-height:1; padding:0;">✕</button>
+    </div>
+    <!-- Score row -->
+    <div style="display:flex; gap:8px; margin-bottom:10px;">
+      <div style="flex:1; background:#090E1A; border-radius:10px; padding:8px; text-align:center;">
+        <div style="font-size:9px; font-weight:800; color:#94A3B8; letter-spacing:0.5px;">SAFETY SCORE</div>
+        <div id="smp-score" style="font-size:20px; font-weight:900;"></div>
+      </div>
+      <div style="flex:1; background:#090E1A; border-radius:10px; padding:8px; text-align:center;">
+        <div style="font-size:9px; font-weight:800; color:#94A3B8; letter-spacing:0.5px;">RISK LEVEL</div>
+        <div id="smp-risk" style="font-size:13px; font-weight:800; margin-top:4px;"></div>
+      </div>
+      <div style="flex:1; background:#090E1A; border-radius:10px; padding:8px; text-align:center;">
+        <div style="font-size:9px; font-weight:800; color:#94A3B8; letter-spacing:0.5px;">CONFIDENCE</div>
+        <div id="smp-confidence" style="font-size:13px; font-weight:800; margin-top:4px; color:#60A5FA;"></div>
+      </div>
+    </div>
+    <!-- Factors -->
+    <div id="smp-factors" style="background:#090E1A; border-radius:10px; padding:10px; font-size:11px; color:#CBD5E1; line-height:1.9;"></div>
+    <div id="smp-no-data" style="display:none; font-size:12px; color:#94A3B8; text-align:center; padding:12px 0;">
+      Safety information is currently unavailable for this area.
+      <br><button onclick="safetyMap_retrySegment()" style="margin-top:6px; font-size:11px; color:#A78BFA; background:none; border:none; cursor:pointer; text-decoration:underline;">↺ Retry</button>
+    </div>
+  </div>
+
+  <!-- ===== END SAFETY MAP MODE OVERLAYS ===== -->
+
   <!-- MODALS -->
+
   <!-- 1. WHY THIS PATH / EXPLAINABLE AI MODAL -->
   <div id="why-path-modal" class="modal-overlay">
     <div class="modal-card" style="text-align: left;">
@@ -2157,5 +2208,241 @@
 
     window.onload = initMap;
   </script>
+
+  <!-- ===== SAFETY MAP MODE — JavaScript Module (NEW) ===== -->
+  <script>
+  // All variables and functions are prefixed safetyMap_ to avoid collision with existing app code.
+
+  var safetyMap_active = false;
+  var safetyMap_layerGroup = null;  // Leaflet LayerGroup for all circles
+  var safetyMap_lastSegments = [];
+  var safetyMap_lastLat = null;
+  var safetyMap_lastLon = null;
+  var safetyMap_retryData = null;   // holds last {lat,lon} for retry
+
+  /** Toggle Safety Map Mode on/off */
+  function safetyMap_toggle() {
+    if (safetyMap_active) {
+      safetyMap_deactivate();
+    } else {
+      safetyMap_activate();
+    }
+  }
+
+  /** Activate Safety Map Mode */
+  function safetyMap_activate() {
+    safetyMap_active = true;
+
+    // Update button appearance
+    var btn = document.getElementById('safety-map-mode-btn');
+    if (btn) {
+      btn.style.background = 'rgba(167,139,250,0.5)';
+      btn.style.color = '#fff';
+      btn.textContent = '🛡️ Safety Map ✓';
+    }
+
+    // Show legend
+    var legend = document.getElementById('safety-map-legend');
+    if (legend) legend.style.display = 'block';
+
+    // Get user GPS position — use existing userCoords global
+    var lat = (typeof userCoords !== 'undefined' && userCoords) ? userCoords.lat : 10.7905;
+    var lon = (typeof userCoords !== 'undefined' && userCoords) ? userCoords.lng : 78.7047;
+
+    safetyMap_load(lat, lon);
+  }
+
+  /** Deactivate Safety Map Mode — removes all overlays, does NOT touch routes/navigation */
+  function safetyMap_deactivate() {
+    safetyMap_active = false;
+
+    // Reset button
+    var btn = document.getElementById('safety-map-mode-btn');
+    if (btn) {
+      btn.style.background = 'rgba(167,139,250,0.15)';
+      btn.style.color = '#A78BFA';
+      btn.textContent = '🛡️ Safety Map';
+    }
+
+    // Hide overlays
+    var legend = document.getElementById('safety-map-legend');
+    if (legend) legend.style.display = 'none';
+    safetyMap_closePanel();
+
+    // Remove circle markers from map
+    if (safetyMap_layerGroup && typeof map !== 'undefined') {
+      map.removeLayer(safetyMap_layerGroup);
+      safetyMap_layerGroup = null;
+    }
+  }
+
+  /** Fetch segments from backend and draw on map */
+  function safetyMap_load(lat, lon) {
+    safetyMap_lastLat = lat;
+    safetyMap_lastLon = lon;
+
+    // Show loading indicator in button
+    var btn = document.getElementById('safety-map-mode-btn');
+    if (btn) btn.textContent = '🛡️ Loading…';
+
+    fetch('/api/safety-map/segments?lat=' + lat + '&lon=' + lon + '&radius_km=0.6')
+      .then(function(r) { return r.json(); })
+      .then(function(data) {
+        if (btn) btn.textContent = '🛡️ Safety Map ✓';
+        if (data.error) {
+          safetyMap_showNoData();
+          return;
+        }
+        safetyMap_lastSegments = data.segments || [];
+        safetyMap_drawSegments(safetyMap_lastSegments);
+      })
+      .catch(function() {
+        if (btn) btn.textContent = '🛡️ Safety Map ✓';
+        safetyMap_showNoData();
+      });
+  }
+
+  /** Draw colored CircleMarkers on the Leaflet map */
+  function safetyMap_drawSegments(segments) {
+    if (typeof map === 'undefined' || !map) return;
+
+    // Remove existing layer group
+    if (safetyMap_layerGroup) {
+      map.removeLayer(safetyMap_layerGroup);
+    }
+
+    safetyMap_layerGroup = L.layerGroup();
+
+    segments.forEach(function(seg) {
+      var circle = L.circleMarker([seg.lat, seg.lon], {
+        radius: 11,
+        fillColor: seg.colour,
+        color: seg.colour,
+        weight: 1.5,
+        opacity: 0.85,
+        fillOpacity: 0.45,
+        interactive: true
+      });
+
+      // Prevent click from propagating to map (preserves existing map click behavior)
+      circle.on('click', function(e) {
+        L.DomEvent.stopPropagation(e);
+        safetyMap_openPanel(seg);
+      });
+
+      safetyMap_layerGroup.addLayer(circle);
+    });
+
+    safetyMap_layerGroup.addTo(map);
+  }
+
+  /** Open the segment info panel with data from a segment object */
+  function safetyMap_openPanel(seg) {
+    var panel = document.getElementById('safety-map-panel');
+    if (!panel) return;
+
+    // Hide no-data fallback, show factors
+    document.getElementById('smp-no-data').style.display = 'none';
+    document.getElementById('smp-factors').style.display = 'block';
+
+    // Title / coordinates
+    document.getElementById('smp-title').textContent = seg.risk_label + ' Zone';
+    document.getElementById('smp-title').style.color = seg.colour;
+    document.getElementById('smp-coords').textContent = seg.lat.toFixed(5) + ', ' + seg.lon.toFixed(5);
+
+    // Score
+    var scoreEl = document.getElementById('smp-score');
+    scoreEl.textContent = seg.safety_score + '/100';
+    scoreEl.style.color = seg.colour;
+
+    // Risk level
+    var riskEl = document.getElementById('smp-risk');
+    riskEl.textContent = seg.risk_label;
+    riskEl.style.color = seg.colour;
+
+    // Confidence
+    document.getElementById('smp-confidence').textContent = seg.confidence || 'MEDIUM';
+
+    // Factors
+    var factorsEl = document.getElementById('smp-factors');
+    var f = seg.factors || {};
+    var fHTML = '';
+    var factorMap = [
+      ['💡', 'Lighting',      f.lighting],
+      ['🔒', 'Crime Safety',  f.crime_safety],
+      ['👥', 'Foot Traffic',  f.foot_traffic],
+      ['📷', 'CCTV Coverage', f.cctv_coverage],
+      ['🏥', 'Safe Havens',   f.safe_havens]
+    ];
+    factorMap.forEach(function(row) {
+      var val = row[2];
+      if (val === undefined || val === null) return;
+      var barColor = val >= 75 ? '#22C55E' : val >= 55 ? '#F59E0B' : '#EF4444';
+      fHTML += '<div style="display:flex; align-items:center; gap:6px; margin-bottom:3px;">' +
+        '<span style="width:110px; flex-shrink:0;">' + row[0] + ' ' + row[1] + '</span>' +
+        '<div style="flex:1; background:#1E293B; border-radius:4px; height:6px;">' +
+          '<div style="width:' + Math.min(100, val) + '%; height:6px; border-radius:4px; background:' + barColor + ';"></div>' +
+        '</div>' +
+        '<span style="color:' + barColor + '; font-weight:800; width:32px; text-align:right;">' + Math.round(val) + '</span>' +
+        '</div>';
+    });
+    factorsEl.innerHTML = fHTML;
+
+    // Store for retry
+    safetyMap_retryData = { lat: seg.lat, lon: seg.lon };
+
+    panel.style.display = 'block';
+  }
+
+  /** Close the segment info panel */
+  function safetyMap_closePanel() {
+    var panel = document.getElementById('safety-map-panel');
+    if (panel) panel.style.display = 'none';
+  }
+
+  /** Show no-data fallback inside info panel */
+  function safetyMap_showNoData() {
+    var panel = document.getElementById('safety-map-panel');
+    if (panel) {
+      document.getElementById('smp-no-data').style.display = 'block';
+      document.getElementById('smp-factors').style.display = 'none';
+      document.getElementById('smp-title').textContent = 'No Data';
+      document.getElementById('smp-title').style.color = '#94A3B8';
+      document.getElementById('smp-coords').textContent = '';
+      document.getElementById('smp-score').textContent = '—';
+      document.getElementById('smp-risk').textContent = '—';
+      document.getElementById('smp-confidence').textContent = '—';
+      panel.style.display = 'block';
+    }
+  }
+
+  /** Retry loading safety data for the last tapped segment */
+  function safetyMap_retrySegment() {
+    if (!safetyMap_retryData) return;
+    safetyMap_load(safetyMap_retryData.lat, safetyMap_retryData.lon);
+  }
+
+  // Auto-refresh segments when user GPS updates (non-breaking hook)
+  (function() {
+    var _origGpsSuccess = window.handleGpsSuccess;
+    if (typeof _origGpsSuccess === 'function') {
+      window.handleGpsSuccess = function(pos) {
+        _origGpsSuccess(pos);
+        if (safetyMap_active) {
+          var lat = pos.coords.latitude;
+          var lon = pos.coords.longitude;
+          // Only reload if moved > 100 m from last load
+          if (safetyMap_lastLat === null ||
+              Math.abs(lat - safetyMap_lastLat) > 0.001 ||
+              Math.abs(lon - safetyMap_lastLon) > 0.001) {
+            safetyMap_load(lat, lon);
+          }
+        }
+      };
+    }
+  })();
+  </script>
+  <!-- ===== END SAFETY MAP MODE ===== -->
+
 </body>
 </html>
