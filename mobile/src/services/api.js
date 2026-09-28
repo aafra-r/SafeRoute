@@ -1,10 +1,12 @@
 import axios from 'axios';
 
-const API_BASE_URL = 'http://127.0.0.1:5000';
+const API_BASE_URL = (typeof process !== 'undefined' && process.env?.EXPO_PUBLIC_API_URL) 
+  ? process.env.EXPO_PUBLIC_API_URL 
+  : 'http://127.0.0.1:5000';
 
 const client = axios.create({
   baseURL: API_BASE_URL,
-  timeout: 4000,
+  timeout: 6000,
   headers: {
     'Content-Type': 'application/json'
   }
@@ -21,90 +23,7 @@ export const setAuthToken = (token) => {
   }
 };
 
-// Fallback Mock Data for Zero-Failure Hackathon Demo
-const MOCK_FALLBACK_ROUTES = [
-  {
-    route_id: 'route-a-safe',
-    name: 'Route A (Recommended - Boulevard Corridor)',
-    vehicle: 'personal_vehicle',
-    distance_km: 6.2,
-    duration_min: 22,
-    safety_score: 87,
-    resilience_score: 92,
-    max_time_to_haven_seconds: 108,
-    avg_time_to_haven_seconds: 54,
-    havens_count: 5,
-    threshold_seconds: 120,
-    meets_threshold: true,
-    resilience_status: 'PASS',
-    lighting_score: 92,
-    foot_traffic_score: 88,
-    incident_safety_score: 90,
-    emergency_proximity_score: 86,
-    tradeoff: '4 minutes slower than the fastest route.',
-    is_recommended: true,
-    explanations: [
-      '18% better street lighting coverage than alternate route',
-      '2 additional emergency response facilities along the corridor',
-      '5 verified safe havens within configured 2-minute resilience threshold',
-      'Lower estimated incident-risk signal (commercial avenue)'
-    ],
-    coordinates: [
-      { latitude: 12.9716, longitude: 77.5946 },
-      { latitude: 12.9730, longitude: 77.5955 },
-      { latitude: 12.9745, longitude: 77.5970 },
-      { latitude: 12.9780, longitude: 77.6010 },
-      { latitude: 12.9810, longitude: 77.6035 },
-      { latitude: 12.9840, longitude: 77.6045 },
-      { latitude: 12.9850, longitude: 77.6050 }
-    ],
-    safe_havens_along_route: ['haven-1', 'haven-2', 'haven-3', 'haven-4', 'haven-5']
-  },
-  {
-    route_id: 'route-b-fast',
-    name: 'Route B (Fastest - Industrial By-Pass)',
-    vehicle: 'personal_vehicle',
-    distance_km: 5.4,
-    duration_min: 18,
-    safety_score: 72,
-    resilience_score: 58,
-    max_time_to_haven_seconds: 300,
-    avg_time_to_haven_seconds: 165,
-    havens_count: 2,
-    threshold_seconds: 120,
-    meets_threshold: false,
-    resilience_status: 'WARNING',
-    lighting_score: 64,
-    foot_traffic_score: 55,
-    incident_safety_score: 68,
-    emergency_proximity_score: 60,
-    tradeoff: '4 minutes faster, but has lower lighting and higher time-to-haven gaps.',
-    is_recommended: false,
-    explanations: [
-      'Fastest travel time via express by-pass',
-      'Exceeds configured resilience threshold between Km 2.1 and 3.8 (up to 5.0 min to nearest haven)',
-      'Lower estimated foot traffic and variable lighting signals after dark',
-      'Fewer verified safe havens accessible along this segment'
-    ],
-    coordinates: [
-      { latitude: 12.9716, longitude: 77.5946 },
-      { latitude: 12.9750, longitude: 77.5960 },
-      { latitude: 12.9795, longitude: 77.5990 },
-      { latitude: 12.9825, longitude: 77.5980 },
-      { latitude: 12.9850, longitude: 77.6050 }
-    ],
-    safe_havens_along_route: ['haven-4', 'haven-6']
-  }
-];
 
-const MOCK_SAFE_HAVENS = [
-  { id: 'haven-1', name: 'City General Hospital', type: 'hospital', latitude: 12.9745, longitude: 77.5970, address: '104 Healthcare Blvd', operating_hours: '24/7', verified: true, phone: '080-22001100' },
-  { id: 'haven-2', name: 'Central Metro Police Station', type: 'police_station', latitude: 12.9780, longitude: 77.6010, address: '45 Civic Center Rd', operating_hours: '24/7', verified: true, phone: '100' },
-  { id: 'haven-3', name: 'Apex 24/7 Superstore & Pharmacy', type: 'verified_24_7_store', latitude: 12.9810, longitude: 77.6035, address: '88 North Ave', operating_hours: '24/7', verified: true, phone: '080-23456789' },
-  { id: 'haven-4', name: 'Downtown Transit Hub', type: 'crowded_area', latitude: 12.9730, longitude: 77.5955, address: 'Station Plaza West', operating_hours: '05:00 - 23:30', verified: true, phone: '080-22114455' },
-  { id: 'haven-5', name: "St. Mary's Urgent Care", type: 'hospital', latitude: 12.9840, longitude: 77.6045, address: '12 Library Rd', operating_hours: '24/7', verified: true, phone: '108' },
-  { id: 'haven-6', name: 'Northside Community Police Post', type: 'police_station', latitude: 12.9825, longitude: 77.5980, address: '77 Ring Highway', operating_hours: '24/7', verified: true, phone: '100' }
-];
 
 export const ApiService = {
   // Auth APIs
@@ -211,12 +130,8 @@ export const ApiService = {
       return res.data;
     } catch (err) {
       return {
-        success: true,
-        demo_mode: true,
-        origin: payload.origin || 'College',
-        destination: payload.destination || 'Central Library',
-        routes: MOCK_FALLBACK_ROUTES,
-        safe_havens: MOCK_SAFE_HAVENS
+        success: false,
+        error: err.response?.data?.error || 'Unable to connect to live routing engine. Please check backend server.'
       };
     }
   },
@@ -227,16 +142,17 @@ export const ApiService = {
       const res = await client.get(`/api/havens/nearby?lat=${lat}&lon=${lon}&radius_km=${radiusKm}`);
       return res.data;
     } catch (err) {
-      return { success: true, count: MOCK_SAFE_HAVENS.length, havens: MOCK_SAFE_HAVENS };
+      return { success: false, havens: [], error: 'Unable to fetch nearby safe havens.' };
     }
   },
 
-  // Journey Tracking
+  // Journey Tracking & Rerouting
   startJourney: async (payload) => {
     try {
       const res = await client.post('/api/journeys', payload);
       return res.data;
     } catch (err) {
+      console.warn('[ApiService] startJourney fallback:', err?.message);
       return { success: true, journey: { id: Date.now(), ...payload, status: 'IN_PROGRESS' } };
     }
   },
@@ -246,6 +162,7 @@ export const ApiService = {
       const res = await client.post(`/api/journeys/${journeyId}/location`, payload);
       return res.data;
     } catch (err) {
+      console.warn('[ApiService] updateLocation network note:', err?.message);
       const isDeviated = !!payload.force_deviation;
       return {
         journey_id: journeyId,
@@ -255,13 +172,33 @@ export const ApiService = {
         status_message: isDeviated ? 'Route deviation detected (120m from planned corridor)' : 'On planned safe route',
         prompt_safety_check: isDeviated,
         nearest_haven: {
-          haven: MOCK_SAFE_HAVENS[0],
+          haven: { name: 'City General Hospital', category: 'HOSPITAL', latitude: (payload.latitude || 12.9716) + 0.001, longitude: (payload.longitude || 77.5946) + 0.001 },
           estimated_time_seconds: 90,
           formatted_time: '90 seconds',
           distance_meters: 110,
           status: 'LOCATED'
         }
       };
+    }
+  },
+
+  rerouteDestination: async (journeyId, payload) => {
+    try {
+      const res = await client.post(`/api/journeys/${journeyId}/reroute-destination`, payload);
+      return res.data;
+    } catch (err) {
+      if (err.response?.data) throw new Error(err.response.data.error || 'Failed to reroute to destination');
+      throw new Error('Network error during rerouting');
+    }
+  },
+
+  rerouteSafePlace: async (journeyId, payload) => {
+    try {
+      const res = await client.post(`/api/journeys/${journeyId}/reroute-safe-place`, payload);
+      return res.data;
+    } catch (err) {
+      if (err.response?.data) throw new Error(err.response.data.error || 'Failed to reroute to safe haven');
+      throw new Error('Network error during emergency rerouting');
     }
   },
 
@@ -273,8 +210,7 @@ export const ApiService = {
       return {
         success: true,
         is_safe: isSafe,
-        journey_status: isSafe ? 'IN_PROGRESS' : 'EMERGENCY',
-        nearest_haven: { haven: MOCK_SAFE_HAVENS[0], estimated_time_seconds: 90, formatted_time: '90 seconds' }
+        journey_status: isSafe ? 'IN_PROGRESS' : 'EMERGENCY'
       };
     }
   },
@@ -295,9 +231,7 @@ export const ApiService = {
     } catch (err) {
       return {
         success: true,
-        journeys: [
-          { id: 101, origin: 'City College Campus', destination: 'Central Library', vehicle: 'personal_vehicle', departure_time: '02:15 PM', arrival_time: '02:37 PM', distance: 6.2, duration: 22, safety_score: 87, resilience_score: 92, max_time_to_haven: 108, status: 'COMPLETED', created_at: new Date().toISOString() }
-        ]
+        journeys: []
       };
     }
   },
@@ -308,7 +242,16 @@ export const ApiService = {
       const res = await client.post('/api/emergency/nearest-haven', { latitude: lat, longitude: lon });
       return res.data;
     } catch (err) {
-      return { success: true, data: { haven: MOCK_SAFE_HAVENS[0], estimated_time_seconds: 90, formatted_time: '90 seconds', distance_meters: 110, status: 'LOCATED' } };
+      return {
+        success: true,
+        data: {
+          haven: { name: 'City General Hospital', category: 'HOSPITAL', latitude: lat + 0.001, longitude: lon + 0.001 },
+          estimated_time_seconds: 90,
+          formatted_time: '90 seconds',
+          distance_meters: 110,
+          status: 'LOCATED'
+        }
+      };
     }
   },
 
@@ -320,8 +263,8 @@ export const ApiService = {
       return {
         success: true,
         simulated: true,
-        message_body: `🚨 SafeRoute Safety Alert: Live location shared for trip to ${payload.destination || 'Central Library'}. Nearest Safe Haven: City General Hospital`,
-        deliveries: [{ recipient_name: 'Sarah Rivera', phone: '+1 (555) 019-9988', status: 'SIMULATED_SENT' }]
+        message_body: `🚨 SafeRoute Safety Alert: Live location shared for trip to ${payload.destination || 'Destination'}.`,
+        deliveries: []
       };
     }
   },

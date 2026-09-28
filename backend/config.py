@@ -18,9 +18,10 @@ class Config:
     )
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     
-    # Engine Settings
+    # Security & CORS Configuration
+    CORS_ORIGINS = os.getenv("CORS_ORIGINS", "*")
     DEMO_MODE = os.getenv("DEMO_MODE", "false").lower() in ("true", "1", "yes")
-    RESILIENCE_THRESHOLD_SECONDS = int(os.getenv("RESILIENCE_THRESHOLD_SECONDS", "120"))
+    RESILIENCE_THRESHOLD_SECONDS = int(os.getenv("RESILIENCE_THRESHOLD_SECONDS", "300"))
     DEVIATION_THRESHOLD_METERS = float(os.getenv("DEVIATION_THRESHOLD_METERS", "50.0"))
     ARRIVAL_THRESHOLD_METERS_MIN = float(os.getenv("ARRIVAL_THRESHOLD_METERS_MIN", "15.0"))
     

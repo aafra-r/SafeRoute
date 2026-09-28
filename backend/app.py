@@ -28,7 +28,10 @@ def create_app(config_class=Config):
     app.config.from_object(config_class)
 
     # Enable CORS for mobile & web clients
-    CORS(app, resources={r"/api/*": {"origins": "*"}})
+    origins = app.config.get("CORS_ORIGINS", "*")
+    if origins != "*" and "," in origins:
+        origins = [o.strip() for o in origins.split(",")]
+    CORS(app, resources={r"/api/*": {"origins": origins}})
 
     # Initialize Database
     db.init_app(app)

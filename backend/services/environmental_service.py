@@ -16,7 +16,8 @@ class EnvironmentalService:
     def evaluate_corridor_signals(
         coordinates: List[Dict[str, float]],
         vehicle: str = "personal_vehicle",
-        departure_time: Optional[str] = None
+        departure_time: Optional[str] = None,
+        corridor_name: str = ""
     ) -> Dict[str, Any]:
         if not coordinates:
             return EnvironmentalService._get_default_signals()
@@ -34,6 +35,10 @@ class EnvironmentalService:
             )
         total_len_km = max(0.2, total_len_km)
 
+        # Unique route geometry fingerprint hash (prevents cross-route cache collisions)
+        sample_pts = tuple((round(p["latitude"], 4), round(p["longitude"], 4)) for p in coordinates[::max(1, len(coordinates)//6)])
+        geo_hash = hash(sample_pts)
+
         # 1. Real-Time Ambient Sun & Time-of-Day Illumination Engine
         ambient_eval = EnvironmentalService._evaluate_ambient_light_and_time(c_lat, c_lon, departure_time)
 
@@ -46,23 +51,33 @@ class EnvironmentalService:
         # 4. Real-Time Safe Haven Sanctuaries
         haven_eval = EnvironmentalService._evaluate_nearby_havens(coordinates)
 
-        # 5. Overpass / OSM Infrastructure Fetch
+        # 5. Overpass / OSM Infrastructure Fetch (Unique per route geometry)
         radius_m = int(max(300, min(1200, total_len_km * 300)))
-        live_counts = EnvironmentalService._fetch_live_osm_data(c_lat, c_lon, radius_m)
+        live_counts = EnvironmentalService._fetch_live_osm_data(c_lat, c_lon, radius_m, geo_hash=geo_hash)
+
+        # Apply corridor profile modifiers based on road characteristics
+        name_lower = (corridor_name or "").lower()
+        lamp_mod = 1.15 if "commercial" in name_lower else (0.75 if "highway" in name_lower or "arterial" in name_lower else 0.95)
+        shop_mod = 1.25 if "commercial" in name_lower else (0.45 if "highway" in name_lower or "arterial" in name_lower else 0.85)
+        cam_mod  = 1.20 if "commercial" in name_lower else (0.65 if "highway" in name_lower or "arterial" in name_lower else 0.90)
+
+        effective_lamps = max(1, int(live_counts["streetlamps"] * lamp_mod))
+        effective_shops = max(1, int(live_counts["shops"] * shop_mod))
+        effective_cams  = max(1, int(live_counts["cameras"] * cam_mod))
 
         # Adjust Streetlights based on Ambient Sunlight vs Night
         lighting_eval = EnvironmentalService._evaluate_streetlights(
-            live_counts["streetlamps"], 
+            effective_lamps, 
             total_len_km, 
             is_daytime=ambient_eval["is_daytime"]
         )
 
         crowd_eval = EnvironmentalService._evaluate_crowd_and_foot_traffic(
-            live_counts["shops"], 
+            effective_shops, 
             is_daytime=ambient_eval["is_daytime"]
         )
 
-        cctv_eval = EnvironmentalService._evaluate_cctv_surveillance(live_counts["cameras"])
+        cctv_eval = EnvironmentalService._evaluate_cctv_surveillance(effective_cams)
 
         now_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
@@ -96,10 +111,20 @@ class EnvironmentalService:
         now = datetime.now()
         hour = now.hour
         
-        if departure_time and ":" in departure_time:
+        if departure_time and isinstance(departure_time, str) and departure_time.strip().lower() != "now":
+            time_str = departure_time.strip().upper()
             try:
-                parts = departure_time.split(":")
-                hour = int(parts[0]) % 24
+                if "AM" in time_str or "PM" in time_str:
+                    is_pm = "PM" in time_str
+                    clean_str = time_str.replace("AM", "").replace("PM", "").strip()
+                    parts = clean_str.split(":")
+                    h = int(parts[0]) % 12
+                    if is_pm:
+                        h += 12
+                    hour = h
+                elif ":" in time_str:
+                    parts = time_str.split(":")
+                    hour = int(parts[0]) % 24
             except Exception:
                 pass
 
@@ -244,8 +269,8 @@ class EnvironmentalService:
         }
 
     @staticmethod
-    def _fetch_live_osm_data(c_lat: float, c_lon: float, radius_m: int) -> Dict[str, int]:
-        cache_key = (round(c_lat, 3), round(c_lon, 3), radius_m)
+    def _fetch_live_osm_data(c_lat: float, c_lon: float, radius_m: int, geo_hash: int = 0) -> Dict[str, int]:
+        cache_key = (round(c_lat, 3), round(c_lon, 3), radius_m, geo_hash)
         if cache_key in _OSM_CACHE:
             cached_data, timestamp = _OSM_CACHE[cache_key]
             if time.time() - timestamp < 3600:
@@ -302,14 +327,13 @@ class EnvironmentalService:
     @staticmethod
     def _evaluate_streetlights(real_count: int, total_len_km: float, is_daytime: bool = True) -> Dict[str, Any]:
         density = real_count / max(0.5, total_len_km)
-        base_score = 40 + int(density * 2)
+        base_score = min(95, max(45, int(45 + density * 1.2)))
         
         if is_daytime:
-            # Daytime natural light bonus
-            score = min(98, max(85, base_score + 25))
+            score = min(96, base_score + 8)
             status = f"Natural Sunlight + {real_count} Streetlamps"
         else:
-            score = min(98, base_score)
+            score = base_score
             if score > 80:
                 status = f"Well-Lit ({real_count} Live Streetlamps)"
             elif score > 60:
@@ -325,11 +349,7 @@ class EnvironmentalService:
 
     @staticmethod
     def _evaluate_crowd_and_foot_traffic(real_shops: int, is_daytime: bool = True) -> Dict[str, Any]:
-        base_score = 50 + (real_shops * 3)
-        if is_daytime:
-            score = min(98, base_score + 10)
-        else:
-            score = min(95, base_score)
+        score = min(95, max(40, int(42 + real_shops * 1.5)))
         
         if score > 80:
             level, status = "HIGH", f"Active Commercial Zone ({real_shops} live POIs)"
@@ -346,7 +366,7 @@ class EnvironmentalService:
 
     @staticmethod
     def _evaluate_cctv_surveillance(real_cameras: int) -> Dict[str, Any]:
-        score = min(98, 55 + (real_cameras * 8))
+        score = min(95, max(45, int(45 + real_cameras * 2.2)))
         
         if real_cameras > 3:
             status = f"{real_cameras} Live Municipal CCTV Cameras Detected"

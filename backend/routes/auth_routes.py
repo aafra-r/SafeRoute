@@ -5,6 +5,8 @@ from backend.utils.auth_helper import hash_password, check_password, generate_to
 
 auth_bp = Blueprint('auth', __name__)
 
+import secrets
+
 @auth_bp.route('/api/auth/register', methods=['POST'])
 def register():
     data = request.get_json() or {}
@@ -40,12 +42,15 @@ def register():
     if User.query.filter_by(email=email).first():
         return jsonify({'error': 'An account with this email already exists'}), 409
 
+    # Generate secure random 6-digit OTP
+    generated_otp = f"{secrets.randbelow(900000) + 100000}"
     hashed = hash_password(password)
     user = User(
         full_name=full_name,
         email=email,
         phone=phone,
-        password_hash=hashed
+        password_hash=hashed,
+        verification_otp=generated_otp
     )
     db.session.add(user)
     db.session.commit()
@@ -66,10 +71,12 @@ def register():
     user_data = user.to_dict()
     user_data['emergency_contacts'] = [c.to_dict() for c in user.emergency_contacts]
     
+    print(f"[AUTH] Generated Registration OTP for {email}: {generated_otp}")
+
     return jsonify({
         'message': 'Registration successful',
         'requires_verification': True,
-        'dev_otp': '123456',
+        'dev_otp': generated_otp,
         'token': token,
         'user': user_data
     }), 201
@@ -85,14 +92,15 @@ def login():
 
     user = User.query.filter_by(email=email).first()
     
-    # Auto-seed demo user if logging in as demo@saferoute.app
+    # Auto-seed demo user if logging in as demo@saferoute.app in development
     if not user and email == 'demo@saferoute.app':
         hashed = hash_password('demo1234')
         user = User(
             full_name='Safe Path Demo User',
             email='demo@saferoute.app',
             phone='+919876543210',
-            password_hash=hashed
+            password_hash=hashed,
+            is_verified=True
         )
         db.session.add(user)
         db.session.commit()
@@ -136,10 +144,12 @@ def verify_otp():
     if not user:
         return jsonify({'error': 'User not found'}), 400
 
-    if otp != '123456' and user.verification_otp != otp:
+    # Enforce strict matching against stored user OTP
+    if not user.verification_otp or user.verification_otp != otp:
         return jsonify({'error': 'Invalid or expired OTP code'}), 400
 
     user.is_verified = True
+    user.verification_otp = None
     db.session.commit()
 
     token = generate_token(user.id, user.email)
@@ -164,12 +174,15 @@ def resend_otp():
     if not user:
         return jsonify({'error': 'User not found'}), 400
 
-    user.verification_otp = '123456'
+    new_otp = f"{secrets.randbelow(900000) + 100000}"
+    user.verification_otp = new_otp
     db.session.commit()
+
+    print(f"[AUTH] Resent OTP for {email}: {new_otp}")
 
     return jsonify({
         'message': 'OTP resent successfully',
-        'dev_otp': '123456'
+        'dev_otp': new_otp
     }), 200
 
 @auth_bp.route('/api/auth/forgot-password', methods=['POST'])
@@ -184,12 +197,15 @@ def forgot_password():
     if not user:
         return jsonify({'error': 'User with this email does not exist'}), 404
 
-    user.reset_otp = '123456'
+    reset_otp = f"{secrets.randbelow(900000) + 100000}"
+    user.reset_otp = reset_otp
     db.session.commit()
+
+    print(f"[AUTH] Password Reset OTP for {email}: {reset_otp}")
 
     return jsonify({
         'message': 'Password reset OTP sent',
-        'dev_otp': '123456'
+        'dev_otp': reset_otp
     }), 200
 
 @auth_bp.route('/api/auth/reset-password', methods=['POST'])
@@ -210,7 +226,12 @@ def reset_password():
     if not user:
         return jsonify({'error': 'User not found'}), 404
 
+    # Enforce strict reset_otp match
+    if not user.reset_otp or user.reset_otp != otp:
+        return jsonify({'error': 'Invalid or expired password reset OTP'}), 400
+
     user.password_hash = hash_password(new_password)
+    user.reset_otp = None
     db.session.commit()
 
     return jsonify({'message': 'Password reset successfully'}), 200

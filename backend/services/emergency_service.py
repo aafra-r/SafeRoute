@@ -54,6 +54,7 @@ class EmergencyService:
 
         time_seconds = int(round(min_distance / EmergencyService.TRAVEL_SPEED_MPS))
         time_minutes = round(time_seconds / 60.0, 1)
+        within_5_mins = time_seconds <= 300
 
         formatted_time = f"{time_seconds} seconds" if time_seconds < 120 else f"{time_minutes} minutes"
 
@@ -62,8 +63,10 @@ class EmergencyService:
             "distance_meters": int(round(min_distance)),
             "estimated_time_seconds": time_seconds,
             "formatted_time": formatted_time,
+            "within_5_mins": within_5_mins,
+            "meets_5min_threshold": within_5_mins,
             "status": "LOCATED",
-            "disclaimer": "Time is an estimated walking/transit model, not guaranteed."
+            "disclaimer": "Emergency reachability evaluated against 5-minute (300s) threshold."
         }
 
     @staticmethod

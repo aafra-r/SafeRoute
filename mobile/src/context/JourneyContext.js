@@ -7,7 +7,8 @@ export const JourneyProvider = ({ children }) => {
   // Navigation & Travel Preferences
   const [origin, setOrigin] = useState('College Gate');
   const [destination, setDestination] = useState('Central Library');
-  const [vehicle, setVehicle] = useState('personal_vehicle');
+  const [vehicle, setVehicle] = useState('auto');
+  const [autoNumber, setAutoNumber] = useState('KA 01 AB 1234');
   const [departureTime, setDepartureTime] = useState('Now');
   const [safetyPreference, setSafetyPreference] = useState('balanced'); // 'fastest', 'balanced', 'safest'
   const [additionalPrefs, setAdditionalPrefs] = useState({
@@ -69,6 +70,7 @@ export const JourneyProvider = ({ children }) => {
         origin: origin,
         destination: destination,
         vehicle: vehicle,
+        auto_number: autoNumber,
         departure_time: departureTime,
         distance_km: route.distance_km,
         duration_min: route.duration_min,
@@ -167,9 +169,53 @@ export const JourneyProvider = ({ children }) => {
       await ApiService.submitSafetyCheck(activeJourney.id, isSafe, currentLocation);
     }
     if (isSafe) {
-      setIsDeviated(false);
-      setSafetyStatus('GREEN');
-      setStatusMessage('Safety confirmed. Resumed journey tracking.');
+      // Re-route dynamically from off-route location back to destination
+      await rerouteToDestination();
+    }
+  };
+
+  // Dynamic Reroute to Original Destination from current off-route GPS
+  const rerouteToDestination = async () => {
+    if (!activeJourney?.id) {
+      resetDeviation();
+      return;
+    }
+    try {
+      const res = await ApiService.rerouteDestination(activeJourney.id, {
+        current_location: currentLocation,
+        original_destination: destination
+      });
+      if (res.new_route && res.new_route.coordinates) {
+        setSelectedRoute(res.new_route);
+        setCurrentGpsIndex(0);
+        setIsDeviated(false);
+        setSafetyStatus('GREEN');
+        setStatusMessage('Dynamic safe reroute active to destination');
+      } else {
+        resetDeviation();
+      }
+    } catch (err) {
+      console.error('[JourneyContext] Reroute error:', err);
+      resetDeviation();
+    }
+  };
+
+  // Emergency Reroute to Safest Nearby Sanctuary
+  const rerouteToSafeHaven = async () => {
+    if (!activeJourney?.id) return;
+    try {
+      const res = await ApiService.rerouteSafePlace(activeJourney.id, {
+        current_location: currentLocation
+      });
+      if (res.new_route && res.new_route.coordinates) {
+        setSelectedRoute(res.new_route);
+        setCurrentGpsIndex(0);
+        setIsDeviated(false);
+        setSafetyStatus('YELLOW');
+        setStatusMessage(`Emergency reroute: Navigating to ${res.safe_place_name || 'Nearest Sanctuary'}`);
+      }
+    } catch (err) {
+      console.error('[JourneyContext] Haven Reroute error:', err);
     }
   };
 
@@ -179,6 +225,7 @@ export const JourneyProvider = ({ children }) => {
         origin, setOrigin,
         destination, setDestination,
         vehicle, setVehicle,
+        autoNumber, setAutoNumber,
         departureTime, setDepartureTime,
         safetyPreference, setSafetyPreference,
         additionalPrefs, setAdditionalPrefs,
@@ -199,7 +246,9 @@ export const JourneyProvider = ({ children }) => {
         stepNextGpsPoint,
         simulateDeviation,
         resetDeviation,
-        handleSafetyCheckResponse
+        handleSafetyCheckResponse,
+        rerouteToDestination,
+        rerouteToSafeHaven
       }}
     >
       {children}

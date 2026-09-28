@@ -41,6 +41,8 @@ class User(db.Model):
             'is_verified': self.is_verified,
             'is_active': self.is_active,
             'onboarding_completed': self.onboarding_completed,
+            'emergency_contacts': [c.to_dict() for c in self.emergency_contacts],
+            'trusted_contacts': [c.to_dict() for c in self.trusted_contacts],
             'created_at': self.created_at.isoformat() if self.created_at else None,
             'updated_at': self.updated_at.isoformat() if self.updated_at else None
         }
@@ -87,6 +89,7 @@ class Journey(db.Model):
     origin = db.Column(db.String(255), nullable=False)
     destination = db.Column(db.String(255), nullable=False)
     vehicle = db.Column(db.String(50), default='walking')
+    vehicle_id = db.Column(db.String(50), nullable=True) # Auto number / vehicle registration
     departure_time = db.Column(db.String(50), nullable=True)
     arrival_time = db.Column(db.String(50), nullable=True)
     distance = db.Column(db.Float, default=0.0)
@@ -106,6 +109,7 @@ class Journey(db.Model):
             'origin': self.origin,
             'destination': self.destination,
             'vehicle': self.vehicle,
+            'vehicle_id': self.vehicle_id,
             'departure_time': self.departure_time,
             'arrival_time': self.arrival_time,
             'distance': self.distance,

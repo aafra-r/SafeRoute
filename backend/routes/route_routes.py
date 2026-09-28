@@ -128,7 +128,8 @@ def calculate_routes():
         env_signals = EnvironmentalService.evaluate_corridor_signals(
             coordinates=coords,
             vehicle=travel_mode,
-            departure_time=departure_time
+            departure_time=departure_time,
+            corridor_name=route.get("name", "")
         )
         last_env_signals = env_signals
 

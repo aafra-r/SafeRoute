@@ -85,6 +85,18 @@ class SafetyScoringEngine:
         if safety_preference.lower() == "safest":
             score = int(round(min(99, score * 1.08)))
 
+        confidence_notes = []
+        if lighting is None:
+            confidence_notes.append("Lighting score estimated via default area profile.")
+        if incidents is None:
+            confidence_notes.append("Crime safety estimated via regional baseline.")
+        if foot_traffic is None:
+            confidence_notes.append("Foot traffic estimated via time-of-day profile.")
+        if emergency_services is None:
+            confidence_notes.append("Emergency proximity estimated via default sanctuary radius.")
+
+        confidence_level = "LOW" if len(confidence_notes) >= 3 else ("MEDIUM" if confidence_notes else "HIGH")
+
         return {
             "safety_score": score,
             "safety_level": ml_result.get("safety_level", "HIGH"),
@@ -101,6 +113,7 @@ class SafetyScoringEngine:
             "accident_rate_score": int(round(norm_accident)),
             "time_multiplier": round(time_multiplier, 2),
             "xgboost_feature_importances": ml_result.get("feature_importances", {}),
-            "confidence_level": "HIGH",
+            "confidence_level": confidence_level,
+            "confidence_notes": confidence_notes,
             "disclaimer": "Real-time safety score predicted via trained XGBoost Regressor ML model evaluating streetlights, crime safety, cctv coverage, crowd density, police patrols, and resilience reach time."
         }

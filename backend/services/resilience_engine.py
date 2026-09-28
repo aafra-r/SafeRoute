@@ -34,7 +34,7 @@ class SafetyResilienceEngine:
                 "maximum_help_distance_m": 585,
                 "nearest_police_m": 420,
                 "nearest_hospital_m": 680,
-                "havens_count": 1,
+                "havens_count": len(safe_havens) if safe_havens else 0,
                 "threshold_seconds": threshold,
                 "meets_threshold": False,
                 "resilience_status": "WARNING",

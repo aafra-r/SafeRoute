@@ -19,6 +19,7 @@ def start_journey():
     origin = data.get('origin', 'Current Location')
     destination = data.get('destination', 'Destination')
     vehicle = data.get('vehicle', 'walking')
+    vehicle_id = data.get('vehicle_id') or data.get('auto_number') or data.get('cab_number')
     departure_time = data.get('departure_time', 'Now')
     distance = data.get('distance_km', 0.0)
     duration = data.get('duration_min', 0)
@@ -32,6 +33,7 @@ def start_journey():
         origin=origin,
         destination=destination,
         vehicle=vehicle,
+        vehicle_id=vehicle_id,
         departure_time=departure_time,
         distance=distance,
         duration=duration,
@@ -88,7 +90,7 @@ def update_location(journey_id):
     deviation_threshold = current_app.config.get('DEVIATION_THRESHOLD_METERS', 50.0)
 
     # Get latest active route geometry
-    route = Route.query.filter_by(journey_id=journey.id).order_by(Route.created_at.desc()).first()
+    route = Route.query.filter_by(journey_id=journey.id).order_by(Route.id.desc()).first()
     route_coords = route.get_geometry() if route else []
 
     if force_deviation:
@@ -139,15 +141,32 @@ def reroute_destination(journey_id):
     data = request.get_json() or {}
     cur_lat = data.get('current_location', {}).get('latitude') or data.get('latitude')
     cur_lng = data.get('current_location', {}).get('longitude') or data.get('longitude')
-    dest_name = data.get('original_destination') or journey.destination
+    d_lat, d_lng = None, None
+    dest_coords = data.get('destination_location')
+    if isinstance(dest_coords, dict):
+        d_lat = dest_coords.get('latitude') or dest_coords.get('lat')
+        d_lng = dest_coords.get('longitude') or dest_coords.get('lng')
 
-    if cur_lat is None or cur_lng is None:
-        return jsonify({'error': 'Current GPS coordinates required for rerouting.'}), 400
+    if d_lat is None or d_lng is None:
+        # Try finding last coordinate of existing journey route
+        last_route = Route.query.filter_by(journey_id=journey.id).order_by(Route.id.asc()).first()
+        coords = last_route.get_geometry() if last_route else []
+        if coords and len(coords) > 0:
+            d_lat = coords[-1]['latitude']
+            d_lng = coords[-1]['longitude']
+        elif dest_name:
+            from backend.services.geocoding_service import GeocodingService
+            places = GeocodingService.search_place(dest_name, limit=1)
+            if places:
+                d_lat, d_lng = places[0]['latitude'], places[0]['longitude']
+
+    if d_lat is None or d_lng is None:
+        d_lat, d_lng = cur_lat + 0.005, cur_lng + 0.005
 
     routing_svc = RoutingService()
     calc_res = routing_svc.get_candidate_routes(
         origin_lat=cur_lat, origin_lng=cur_lng,
-        dest_lat=cur_lat + 0.005, dest_lng=cur_lng + 0.005, # Fallback dest if text search needed
+        dest_lat=d_lat, dest_lng=d_lng,
         travel_mode=journey.vehicle
     )
 

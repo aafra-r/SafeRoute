@@ -29,6 +29,11 @@
     * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif; }
     body { background: var(--bg); color: var(--text-main); height: 100vh; display: flex; overflow: hidden; }
 
+    /* DARK MODE LEAFLET NIGHT FILTER (100% Watermark-Free & No API Key) */
+    .leaflet-dark-mode .leaflet-tile-pane {
+      filter: brightness(0.65) invert(1) contrast(2.6) hue-rotate(200deg) saturate(0.35);
+    }
+
     /* AUTHENTICATION GATEWAY OVERLAY */
     #auth-gateway {
       position: fixed;
@@ -691,6 +696,7 @@
   <div class="map-container">
     <!-- Top Left Floating Map Controls -->
     <div class="floating-map-controls">
+      <button class="nav-tab-btn map-style-btn" data-style="light" onclick="setMapStyle('light')" style="padding: 6px 10px; font-size: 11px;">☀️ Light</button>
       <button class="nav-tab-btn map-style-btn active" data-style="dark" onclick="setMapStyle('dark')" style="padding: 6px 10px; font-size: 11px;">🌙 Dark</button>
       <button class="nav-tab-btn map-style-btn" data-style="satellite" onclick="setMapStyle('satellite')" style="padding: 6px 10px; font-size: 11px;">🛰️ Satellite</button>
       <button class="nav-tab-btn map-style-btn" data-style="streets" onclick="setMapStyle('streets')" style="padding: 6px 10px; font-size: 11px;">🗺️ Streets</button>
@@ -990,7 +996,8 @@
     // MAP INIT
     // ─────────────────────────────────────────────
     const tileLayers = {
-      dark: L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', { maxZoom: 19, attribution: '&copy; CARTO' }),
+      light: L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '&copy; OpenStreetMap' }),
+      dark: L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '&copy; OpenStreetMap' }),
       satellite: L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', { maxZoom: 19, attribution: '&copy; Esri' }),
       streets: L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '&copy; OpenStreetMap' })
     };
@@ -1002,11 +1009,41 @@
       if (p) p.value = '';
     }
 
+    function syncUserProfileUI(user) {
+      if (!user) user = getSessionUser();
+      if (!user) return;
+      const nameEl = document.getElementById('profile-name');
+      const emailEl = document.getElementById('profile-email');
+      const ecNameEl = document.getElementById('profile-ec-name');
+      const ecPhoneEl = document.getElementById('profile-ec-phone');
+
+      if (nameEl && (user.full_name || user.name)) nameEl.textContent = user.full_name || user.name;
+      if (emailEl && user.email) emailEl.textContent = user.email;
+
+      let contactName = null;
+      let contactPhone = null;
+
+      if (user.emergency_contacts && user.emergency_contacts.length > 0) {
+        const c = user.emergency_contacts[0];
+        const rel = c.relationship ? ` (${c.relationship})` : '';
+        contactName = `${c.name || 'Emergency Contact'}${rel}`;
+        contactPhone = c.phone || c.phone_number || '';
+      } else if (user.emergency_contact_name) {
+        const rel = user.emergency_contact_rel ? ` (${user.emergency_contact_rel})` : '';
+        contactName = `${user.emergency_contact_name}${rel}`;
+        contactPhone = user.emergency_contact_phone || '';
+      }
+
+      if (ecNameEl && contactName) ecNameEl.textContent = contactName;
+      if (ecPhoneEl && contactPhone) ecPhoneEl.textContent = contactPhone;
+    }
+
     function initMap() {
       clearLoginFormFields();
       setTimeout(clearLoginFormFields, 100);
       setTimeout(clearLoginFormFields, 300);
       setTimeout(clearLoginFormFields, 600);
+      syncUserProfileUI();
       map = L.map('leaflet-map', { zoomControl: false }).setView([userCoords.lat, userCoords.lon], 14);
       L.control.zoom({ position: 'bottomright' }).addTo(map);
       setMapStyle('dark');
@@ -1022,12 +1059,19 @@
     }
 
     function setMapStyle(styleName) {
-      if (tileLayers[styleName]) {
-        Object.values(tileLayers).forEach(l => { if (map.hasLayer(l)) map.removeLayer(l); });
-        tileLayers[styleName].addTo(map);
-        document.querySelectorAll('.map-style-btn').forEach(b => b.classList.remove('active'));
-        document.querySelector(`.map-style-btn[data-style="${styleName}"]`)?.classList.add('active');
+      const mapContainer = document.getElementById('leaflet-map');
+      if (mapContainer) {
+        if (styleName === 'dark') {
+          mapContainer.classList.add('leaflet-dark-mode');
+        } else {
+          mapContainer.classList.remove('leaflet-dark-mode');
+        }
       }
+      const targetStyle = tileLayers[styleName] ? styleName : 'dark';
+      Object.values(tileLayers).forEach(l => { if (map.hasLayer(l)) map.removeLayer(l); });
+      tileLayers[targetStyle].addTo(map);
+      document.querySelectorAll('.map-style-btn').forEach(b => b.classList.remove('active'));
+      document.querySelector(`.map-style-btn[data-style="${styleName}"]`)?.classList.add('active');
     }
 
     // ─────────────────────────────────────────────
@@ -1062,8 +1106,7 @@
         if (res.ok && data.token) {
           localStorage.setItem('safepath_token', data.token);
           localStorage.setItem('safepath_user', JSON.stringify(data.user));
-          document.getElementById('profile-name').textContent = data.user.full_name || "Safe Path User";
-          document.getElementById('profile-email').textContent = data.user.email || email;
+          syncUserProfileUI(data.user);
           document.getElementById('auth-gateway').style.display = 'none';
           return;
         } else {
@@ -1071,10 +1114,10 @@
           return;
         }
       } catch (err) { console.warn("Fallback session mode", err); }
+      const fallbackUser = { full_name: "Safe Path User", email };
       localStorage.setItem('safepath_token', 'safepath-active-session');
-      localStorage.setItem('safepath_user', JSON.stringify({ full_name: "Safe Path User", email }));
-      document.getElementById('profile-name').textContent = "Safe Path User";
-      document.getElementById('profile-email').textContent = email;
+      localStorage.setItem('safepath_user', JSON.stringify(fallbackUser));
+      syncUserProfileUI(fallbackUser);
       document.getElementById('auth-gateway').style.display = 'none';
     }
 
@@ -1096,27 +1139,30 @@
       if (!full_name || !email || !password) return alert("Please fill in your Name, Email, and Password.");
       if (!emergency_contact_name || !emergency_contact_phone) return alert("Please fill in your Primary Emergency Contact Name and Phone Number.");
 
+      const regPayload = {
+        full_name,
+        email,
+        phone,
+        password,
+        emergency_contact_name,
+        emergency_contact_phone,
+        emergency_contact_rel,
+        emergency_contacts: [{ name: emergency_contact_name, phone: emergency_contact_phone, relationship: emergency_contact_rel }]
+      };
+
       try {
         const res = await fetch('/api/auth/register', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            full_name,
-            email,
-            phone,
-            password,
-            emergency_contact_name,
-            emergency_contact_phone,
-            emergency_contact_rel
-          })
+          body: JSON.stringify(regPayload)
         });
         const data = await res.json();
         if (res.ok) {
+          const userObj = data.user || regPayload;
           if (data.token) {
             localStorage.setItem('safepath_token', data.token);
-            localStorage.setItem('safepath_user', JSON.stringify(data.user || { full_name, email }));
-            document.getElementById('profile-name').textContent = full_name;
-            document.getElementById('profile-email').textContent = email;
+            localStorage.setItem('safepath_user', JSON.stringify(userObj));
+            syncUserProfileUI(userObj);
             document.getElementById('auth-gateway').style.display = 'none';
             alert("🎉 Account & Primary Emergency Contact registered! Welcome to Safe Path.");
           } else {
@@ -1140,9 +1186,8 @@
 
       // Graceful local session fallback if server network call is interrupted
       localStorage.setItem('safepath_token', 'safepath-active-session');
-      localStorage.setItem('safepath_user', JSON.stringify({ full_name, email }));
-      document.getElementById('profile-name').textContent = full_name || "Safe Path User";
-      document.getElementById('profile-email').textContent = email;
+      localStorage.setItem('safepath_user', JSON.stringify(regPayload));
+      syncUserProfileUI(regPayload);
       document.getElementById('auth-gateway').style.display = 'none';
     }
 
@@ -1151,6 +1196,8 @@
       localStorage.removeItem('safepath_user');
       document.getElementById('gateway-login-email').value = '';
       document.getElementById('gateway-login-password').value = '';
+      document.getElementById('profile-ec-name').textContent = 'Not Set';
+      document.getElementById('profile-ec-phone').textContent = 'Not Set';
       document.getElementById('auth-gateway').style.display = 'flex';
       switchSection('sec-search');
     }
@@ -1230,12 +1277,21 @@
     // ─────────────────────────────────────────────
     // ROUTE CALCULATION
     // ─────────────────────────────────────────────
-    async function calculateUserRouteSearch() {
-      const origin = document.getElementById('origin-input').value.trim();
+    async function calculateUserRouteSearch(fromCurrentGps = false) {
+      const originInput = document.getElementById('origin-input').value.trim();
       const destination = document.getElementById('dest-input').value.trim();
       const safetyPreference = document.getElementById('pref-select').value;
       const depTime = document.getElementById('dep-time').value;
-      if (!origin || !destination) return alert("Please enter both a starting location and destination.");
+
+      let originPayload;
+      if (fromCurrentGps || !originInput || originInput.toLowerCase().includes('current')) {
+        originPayload = { lat: userCoords.lat, lng: userCoords.lon };
+        document.getElementById('origin-input').value = `Current Position (${userCoords.lat.toFixed(4)}, ${userCoords.lon.toFixed(4)})`;
+      } else {
+        originPayload = originInput;
+      }
+
+      if (!originPayload || !destination) return alert("Please enter both a starting location and destination.");
 
       if (currentTransportMode === 'cab') {
         const vehicleId = document.getElementById('vehicle-id-input').value.trim();
@@ -1243,13 +1299,13 @@
       }
 
       const container = document.getElementById('routes-container');
-      container.innerHTML = `<div class="card" style="text-align:center;padding:20px;"><div style="font-size:28px;margin-bottom:6px;">🔍</div><h4 style="font-size:14px;font-weight:700;">Analysing real-time road network & safety data…</h4><p style="font-size:11.5px;color:var(--text-muted);margin-top:4px;">OSRM routing + XGBoost ML scoring + Live Weather + OSM infrastructure</p></div>`;
+      container.innerHTML = `<div class="card" style="text-align:center;padding:20px;"><div style="font-size:28px;margin-bottom:6px;">🔍</div><h4 style="font-size:14px;font-weight:700;">Analysing real-time road network & safety data from current position…</h4><p style="font-size:11.5px;color:var(--text-muted);margin-top:4px;">OSRM routing + XGBoost ML scoring + Live Weather + OSM infrastructure</p></div>`;
 
       try {
         const res = await fetch('/api/routes/calculate', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ origin, destination, travel_mode: currentTransportMode, safety_preference: safetyPreference, departure_time: depTime })
+          body: JSON.stringify({ origin: originPayload, destination, travel_mode: currentTransportMode, safety_preference: safetyPreference, departure_time: depTime })
         });
         const data = await res.json();
         if (res.ok) {
@@ -1262,6 +1318,9 @@
           renderRouteCards(routesList, data.routing_provider, data.safety_model, data.live_weather);
           drawRoutePolylines(routesList);
           plotNearbyHavens();
+          if (fromCurrentGps && routesList.length > 0) {
+            showNavHud(routesList[0]);
+          }
         } else {
           container.innerHTML = `<div class="card"><p style="color:var(--danger-red);font-size:12px;">${data.error || "Unable to calculate routes."}</p></div>`;
         }
@@ -1666,12 +1725,15 @@
     async function completeTrip() {
       liveTrackingActive = false;
       stopNavHud();
+      const completedDest = document.getElementById('dest-input').value.trim() || 'Completed Route Corridor';
       if (currentJourneyId) {
         try { await fetch(`/api/journeys/${currentJourneyId}/complete`, { method: 'POST', headers: authHeaders() }); } catch (e) {}
       }
       currentJourneyId = null;
-      alert("🎉 Journey Completed Safely! Thank you for navigating with Safe Path.");
-      switchSection('sec-search');
+      alert("🎉 Journey Completed Safely! Please leave a community safety review for this corridor.");
+      switchSection('sec-feedback');
+      const fbLocInput = document.getElementById('fb-location');
+      if (fbLocInput) fbLocInput.value = completedDest;
     }
 
     async function refreshNearestHaven() {
@@ -1793,7 +1855,18 @@
       } catch (e) { alert("Sanctuary route requested from current GPS."); }
     }
 
-    function escalateReroute() { closeEmergencyHubModal(); switchSection('sec-search'); calculateUserRouteSearch(); }
+    async function escalateReroute() {
+      closeEmergencyHubModal();
+      const safetyModal = document.getElementById('safety-modal');
+      if (safetyModal) safetyModal.style.display = 'none';
+      switchSection('sec-search');
+      await calculateUserRouteSearch(true);
+      if (calculatedRoutes && calculatedRoutes.length > 0) {
+        showNavHud(calculatedRoutes[0]);
+        setLiveStatus('YELLOW', 'Rerouted safely from current position to destination.');
+        alert("🔄 Alternate route calculated directly from your current GPS position!");
+      }
+    }
 
     // ─────────────────────────────────────────────
     // HAVENS & FEEDBACK
