@@ -878,6 +878,16 @@
         <button class="btn btn-outline" style="padding: 5px 10px; font-size: 10.5px;" onclick="resetVpsPosition()">🧭 Reset GPS</button>
       </div>
 
+      <!-- Quick 360° Street View City Presets Bar -->
+      <div style="background: #070A12; padding: 6px 14px; border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 6px; flex-wrap: wrap; font-size: 10px;">
+        <span style="font-weight: 800; color: var(--text-muted);">📍 PRESET 360° LOCATIONS:</span>
+        <button onclick="openVpsVisualViewModal(userCoords.lat, userCoords.lon)" style="background: rgba(16,185,129,0.15); border: 1px solid var(--safe-green); color: var(--safe-green); padding: 3px 8px; border-radius: 6px; font-size: 10px; font-weight: 700; cursor: pointer;">📍 My GPS</button>
+        <button onclick="openVpsVisualViewModal(12.9756, 77.6080)" style="background: #1E293B; border: 1px solid var(--border-accent); color: #fff; padding: 3px 8px; border-radius: 6px; font-size: 10px; font-weight: 700; cursor: pointer;">📍 Bangalore (MG Road)</button>
+        <button onclick="openVpsVisualViewModal(13.0604, 80.2496)" style="background: #1E293B; border: 1px solid var(--border-accent); color: #fff; padding: 3px 8px; border-radius: 6px; font-size: 10px; font-weight: 700; cursor: pointer;">📍 Chennai (Anna Salai)</button>
+        <button onclick="openVpsVisualViewModal(28.6315, 77.2167)" style="background: #1E293B; border: 1px solid var(--border-accent); color: #fff; padding: 3px 8px; border-radius: 6px; font-size: 10px; font-weight: 700; cursor: pointer;">📍 Delhi (Connaught Place)</button>
+        <button onclick="openVpsVisualViewModal(18.9438, 72.8234)" style="background: #1E293B; border: 1px solid var(--border-accent); color: #fff; padding: 3px 8px; border-radius: 6px; font-size: 10px; font-weight: 700; cursor: pointer;">📍 Mumbai (Marine Drive)</button>
+      </div>
+
       <!-- Panorama Container (Zero Iframe Blocking, Official 360 Street View) -->
       <div style="flex: 1; position: relative; background: #000;">
         <iframe id="vps-streetview-iframe" src="" style="width: 100%; height: 100%; border: 0;" allowfullscreen loading="lazy" referrerpolicy="no-referrer-when-downgrade"></iframe>
