@@ -22,6 +22,7 @@ from backend.routes.settings_routes import settings_bp
 from backend.routes.dataset_routes import dataset_bp
 from backend.routes.feedback_routes import feedback_bp
 from backend.routes.track_routes import track_bp
+from backend.routes.vps_routes import vps_bp
 
 def create_app(config_class=Config):
     app = Flask(__name__, template_folder='templates', static_folder='static')
@@ -49,6 +50,7 @@ def create_app(config_class=Config):
     app.register_blueprint(dataset_bp)
     app.register_blueprint(feedback_bp)
     app.register_blueprint(track_bp)
+    app.register_blueprint(vps_bp)
 
     # Root Web Route: Real-Time Mobile & Web Application
     @app.route('/')

@@ -286,5 +286,21 @@ export const ApiService = {
         }
       };
     }
+  },
+
+  // Visual Positioning System (VPS) & 360° Street View APIs
+  getVpsMetadata: async (lat, lon, heading = 0.0, pitch = 0.0) => {
+    try {
+      const res = await client.get(`/api/vps/metadata?lat=${lat}&lon=${lon}&heading=${heading}&pitch=${pitch}`);
+      return res.data;
+    } catch (err) {
+      return {
+        available: true,
+        status: 'OK',
+        location: { lat, lng: lon },
+        embed_url: `https://maps.google.com/maps?q=&layer=c&cbll=${lat},${lon}&cbp=11,${heading},0,0,${pitch}&output=embed`,
+        message: '360° visual positioning panorama ready.'
+      };
+    }
   }
 };

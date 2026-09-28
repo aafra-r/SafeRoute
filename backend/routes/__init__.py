@@ -9,6 +9,7 @@ from backend.routes.geocoding_routes import geocoding_bp
 from backend.routes.settings_routes import settings_bp
 from backend.routes.dataset_routes import dataset_bp
 from backend.routes.feedback_routes import feedback_bp
+from backend.routes.vps_routes import vps_bp
 
 __all__ = [
     'health_bp',
@@ -21,5 +22,6 @@ __all__ = [
     'geocoding_bp',
     'settings_bp',
     'dataset_bp',
-    'feedback_bp'
+    'feedback_bp',
+    'vps_bp'
 ]

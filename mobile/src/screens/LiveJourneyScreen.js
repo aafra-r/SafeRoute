@@ -6,10 +6,12 @@ import { Button } from '../components/Button';
 import { InteractiveMap } from '../components/InteractiveMap';
 import { HavenCard } from '../components/SafeHavenMarker';
 import { SafetyCheckModal } from './SafetyCheckModal';
+import { VisualPositioningModal } from '../components/VisualPositioningModal';
 import { useJourney } from '../context/JourneyContext';
 import { ApiService } from '../services/api';
 
 export const LiveJourneyScreen = ({ navigation }) => {
+  const [showVpsModal, setShowVpsModal] = useState(false);
   const {
     activeJourney,
     selectedRoute,
@@ -75,7 +77,7 @@ export const LiveJourneyScreen = ({ navigation }) => {
         height={220}
       />
 
-      {/* Trip Metric Bar */}
+      {/* Trip Metric Bar with Visual View (360° VPS) Button */}
       <View style={styles.metricsRow}>
         <View style={styles.metricCard}>
           <Text style={styles.metricLabel}>ETA Remaining</Text>
@@ -90,6 +92,24 @@ export const LiveJourneyScreen = ({ navigation }) => {
           <Text style={[styles.metricValue, { color: COLORS.safeGreen }]}>90s Help</Text>
         </View>
       </View>
+
+      {/* 360° Visual View Positioning Launcher */}
+      <TouchableOpacity
+        style={styles.vpsLaunchCard}
+        onPress={() => setShowVpsModal(true)}
+        activeOpacity={0.85}
+      >
+        <View style={styles.vpsLaunchLeft}>
+          <Text style={styles.vpsLaunchIcon}>👁️</Text>
+          <View>
+            <Text style={styles.vpsLaunchTitle}>Visual View (360° VPS)</Text>
+            <Text style={styles.vpsLaunchSub}>Inspect real-time street imagery & lighting</Text>
+          </View>
+        </View>
+        <View style={styles.vpsLaunchBtn}>
+          <Text style={styles.vpsLaunchBtnText}>Open 360° ›</Text>
+        </View>
+      </TouchableOpacity>
 
       {/* Nearest Safe Haven Live Card */}
       <View style={styles.havenSection}>
@@ -171,6 +191,14 @@ export const LiveJourneyScreen = ({ navigation }) => {
         timeToHaven={nearestHaven?.formatted_time || '90 seconds'}
         reason={isDeviated ? 'Route deviation detected (120m off planned path)' : 'Safety check prompt'}
       />
+
+      {/* 360° Visual Positioning System Modal */}
+      <VisualPositioningModal
+        visible={showVpsModal}
+        onClose={() => setShowVpsModal(false)}
+        location={currentLocation}
+        destinationName={activeJourney?.destination || 'Destination'}
+      />
     </ScrollView>
   );
 };
@@ -244,6 +272,47 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '700',
     marginTop: 2
+  },
+  vpsLaunchCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: 'rgba(59, 130, 246, 0.15)',
+    borderWidth: 1.5,
+    borderColor: COLORS.primaryLight,
+    borderRadius: 14,
+    padding: 12,
+    marginVertical: 8
+  },
+  vpsLaunchLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    flex: 1
+  },
+  vpsLaunchIcon: {
+    fontSize: 24
+  },
+  vpsLaunchTitle: {
+    color: '#FFFFFF',
+    fontSize: 13,
+    fontWeight: '800'
+  },
+  vpsLaunchSub: {
+    color: COLORS.textSecondary,
+    fontSize: 10,
+    marginTop: 1
+  },
+  vpsLaunchBtn: {
+    backgroundColor: COLORS.primary,
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    borderRadius: 8
+  },
+  vpsLaunchBtnText: {
+    color: '#FFFFFF',
+    fontSize: 11,
+    fontWeight: '800'
   },
   havenSection: {
     marginTop: 8
