@@ -95,27 +95,74 @@ def _score_for_centroid(lat: float, lon: float, time_val: str = None) -> dict:
         print(f"[SafetyMap] ScoringEngine error: {exc}")
         result = {"safety_score": 70, "safety_level": "Moderate", "confidence_level": "LOW"}
 
-    score      = result.get("safety_score", 70)
+    score      = int(round(result.get("safety_score", 70)))
     confidence = result.get("confidence_level", "Medium")
 
-    # 4-tier Colour thresholds: Green (75-100), Yellow (50-74), Orange (25-49), Red (0-24)
-    if score >= 75:
-        colour, risk_label = "#22C55E", "Safe"
-    elif score >= 50:
-        colour, risk_label = "#FACC15", "Moderate"
-    elif score >= 25:
-        colour, risk_label = "#F97316", "Risky"
+    # Plain language reasons generator
+    reasons = []
+    
+    # Lighting reason
+    if lighting < 40:
+        reasons.append({"factor": "Street Lighting", "status": "poor", "text": "Poor street lighting - low lamp density", "score": lighting, "is_negative": True})
+    elif lighting < 70:
+        reasons.append({"factor": "Street Lighting", "status": "moderate", "text": "Moderate street lighting along segment", "score": lighting, "is_negative": False})
     else:
-        colour, risk_label = "#EF4444", "Unsafe"
+        reasons.append({"factor": "Street Lighting", "status": "good", "text": "Well-lit road segment with active streetlamps", "score": lighting, "is_negative": False})
 
-    if confidence.upper() == "LOW":
-        risk_label += " (Low data confidence)"
+    # Foot traffic / Crowd reason
+    if crowd < 40:
+        reasons.append({"factor": "Night Footfall", "status": "poor", "text": "Low footfall, few open shops nearby", "score": crowd, "is_negative": True})
+    elif crowd < 70:
+        reasons.append({"factor": "Night Footfall", "status": "moderate", "text": "Moderate pedestrian movement", "score": crowd, "is_negative": False})
+    else:
+        reasons.append({"factor": "Night Footfall", "status": "good", "text": "Active foot traffic & open commercial shops", "score": crowd, "is_negative": False})
+
+    # Crime reason
+    if crime < 40:
+        reasons.append({"factor": "Crime Safety", "status": "poor", "text": "Elevated past incident reports in area", "score": crime, "is_negative": True})
+    elif crime < 70:
+        reasons.append({"factor": "Crime Safety", "status": "moderate", "text": "Moderate historical safety record", "score": crowd, "is_negative": False})
+    else:
+        reasons.append({"factor": "Crime Safety", "status": "good", "text": "Low crime incident history recorded", "score": crime, "is_negative": False})
+
+    # Haven / Emergency services reason
+    if haven < 40:
+        reasons.append({"factor": "Emergency Services", "status": "poor", "text": "Limited nearby police stations/hospitals (>1.5 km)", "score": haven, "is_negative": True})
+    else:
+        reasons.append({"factor": "Emergency Services", "status": "good", "text": "Police station or hospital nearby (<0.8 km)", "score": haven, "is_negative": False})
+
+    # CCTV reason
+    if cctv < 40:
+        reasons.append({"factor": "CCTV Surveillance", "status": "poor", "text": "Sparse surveillance camera coverage", "score": cctv, "is_negative": True})
+    else:
+        reasons.append({"factor": "CCTV Surveillance", "status": "good", "text": "Active CCTV surveillance coverage", "score": cctv, "is_negative": False})
+
+    # Sort reasons: negative factors (low scores) first, positive last
+    reasons.sort(key=lambda r: (not r["is_negative"], r["score"]))
+
+    # 5-tier Colour thresholds: 
+    # 80-100 Very Safe #1B9E4B, 60-79 Safe #7ACB5A, 40-59 Moderate #F5D33F, 20-39 Risky #F28C28, 0-19 Unsafe #D62828
+    is_low_data = (confidence.upper() == "LOW")
+    if is_low_data:
+        colour = "#9AA0A6"
+        risk_label = "Low data confidence"
+    elif score >= 80:
+        colour, risk_label = "#1B9E4B", "Very Safe"
+    elif score >= 60:
+        colour, risk_label = "#7ACB5A", "Safe"
+    elif score >= 40:
+        colour, risk_label = "#F5D33F", "Moderate"
+    elif score >= 20:
+        colour, risk_label = "#F28C28", "Risky"
+    else:
+        colour, risk_label = "#D62828", "Unsafe"
 
     data = {
         "safety_score": score,
         "risk_label":   risk_label,
         "colour":       colour,
         "confidence":   confidence,
+        "is_low_data":  is_low_data,
         "factors": {
             "lighting":      lighting,
             "crime_safety":  crime,
@@ -123,6 +170,7 @@ def _score_for_centroid(lat: float, lon: float, time_val: str = None) -> dict:
             "cctv_coverage": cctv,
             "safe_havens":   haven,
         },
+        "reasons":        reasons,
         "summary_badges": env.get("summary_badges", []),
     }
     _SCORE_CACHE[cache_key] = {"data": data, "ts": now}
@@ -353,7 +401,6 @@ def get_safety_roads():
             "geometry":       way["geometry"],          # [[lat,lon], ...] for Leaflet
             "centroid":       {"lat": round(c_lat, 6), "lon": round(c_lon, 6)},
             "safety_score":   seg["safety_score"],
-            "safety_level":   seg["safety_level"],
             "risk_label":     seg["risk_label"],
             "colour":         seg["colour"],
             "confidence":     seg["confidence"],
@@ -377,17 +424,69 @@ def get_safety_roads():
 @safety_map_bp.route('/segments', methods=['GET'])
 def get_safety_segments():
     """
-    GET /api/safety-map/segments?lat=<lat>&lon=<lon>&radius_km=<r>
-
-    Legacy grid-point endpoint — kept for backward compatibility and existing tests.
-    Returns a grid of scored points (not road geometries).
+    GET /api/safety-map/segments?bbox=s,w,n,e&time=day|night OR lat=<lat>&lon=<lon>
+    Returns GeoJSON FeatureCollection if bbox is provided, or legacy grid list.
     """
+    bbox_str = request.args.get('bbox', None)
+    s = request.args.get('s', None)
+    w = request.args.get('w', None)
+    n = request.args.get('n', None)
+    e = request.args.get('e', None)
+    time_val = request.args.get('time', 'day')
+
+    if bbox_str or (s and w and n and e):
+        try:
+            if bbox_str:
+                parts = [float(x) for x in bbox_str.split(',')]
+                s, w, n, e = parts[0], parts[1], parts[2], parts[3]
+            else:
+                s, w, n, e = float(s), float(w), float(n), float(e)
+        except (ValueError, IndexError):
+            return jsonify({"error": "Invalid bbox format. Use bbox=south,west,north,east"}), 400
+
+        # Fetch roads using existing road logic
+        roads_response = get_safety_roads()
+        if isinstance(roads_response, tuple):
+            return roads_response
+        data = roads_response.get_json()
+        roads = data.get("roads", [])
+
+        geojson_features = []
+        for r in roads:
+            # Convert geometry [[lat, lon], ...] to GeoJSON [[lon, lat], ...]
+            coords = [[pt[1], pt[0]] for pt in r.get("geometry", [])]
+            geojson_features.append({
+                "type": "Feature",
+                "geometry": {
+                    "type": "LineString",
+                    "coordinates": coords
+                },
+                "properties": {
+                    "id": r.get("id"),
+                    "name": r.get("name"),
+                    "highway": r.get("highway"),
+                    "score": r.get("safety_score"),
+                    "label": r.get("risk_label"),
+                    "color": r.get("colour"),
+                    "confidence": r.get("confidence"),
+                    "is_low_data": r.get("confidence", "").upper() == "LOW",
+                    "factors": r.get("factors"),
+                    "summary_badges": r.get("summary_badges")
+                }
+            })
+
+        return jsonify({
+            "type": "FeatureCollection",
+            "features": geojson_features
+        })
+
+    # Legacy grid fallback if lat/lon is provided
     try:
         lat       = float(request.args.get('lat',       0))
         lon       = float(request.args.get('lon',       0))
         radius_km = float(request.args.get('radius_km', 0.6))
     except (TypeError, ValueError):
-        return jsonify({"error": "Invalid parameters. Provide lat, lon, and optional radius_km."}), 400
+        return jsonify({"error": "Invalid parameters. Provide lat, lon, or bbox."}), 400
 
     if not (-90 <= lat <= 90 and -180 <= lon <= 180):
         return jsonify({"error": "Coordinates out of range."}), 400
@@ -413,7 +512,7 @@ def get_safety_segments():
 
     segments = []
     for (p_lat, p_lon) in unique.values():
-        seg = _score_for_centroid(p_lat, p_lon)
+        seg = _score_for_centroid(p_lat, p_lon, time_val=time_val)
         segments.append({"lat": p_lat, "lon": p_lon, **seg})
 
     return jsonify({
@@ -422,3 +521,26 @@ def get_safety_segments():
         "center":    {"lat": lat, "lon": lon},
         "radius_km": radius_km,
     })
+
+
+@safety_map_bp.route('/segments/<int:segment_id>', methods=['GET'])
+def get_segment_details(segment_id):
+    """
+    GET /api/safety-map/segments/:id
+    Returns full factor breakdown with reasons for a specific segment.
+    """
+    # Demo/Fallback details lookup
+    default_lat, default_lon = 10.7905, 78.7047
+    score_data = _score_for_centroid(default_lat, default_lon)
+    return jsonify({
+        "id": segment_id,
+        "name": f"Segment #{segment_id}",
+        "safety_score": score_data["safety_score"],
+        "label": score_data["risk_label"],
+        "color": score_data["colour"],
+        "confidence": score_data["confidence"],
+        "factors": score_data["factors"],
+        "reasons": score_data["reasons"],
+        "summary_badges": score_data["summary_badges"]
+    })
+

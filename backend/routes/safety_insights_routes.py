@@ -48,25 +48,48 @@ def _score_for_centroid(lat: float, lon: float) -> dict:
     except Exception as exc:
         result = {"safety_score": 70, "safety_level": "MEDIUM", "confidence_level": "LOW"}
 
-    score = result.get("safety_score", 70)
+    score = int(round(result.get("safety_score", 70)))
     confidence = result.get("confidence_level", "Medium")
-    if score >= 75:
-        colour, risk_label = "#22C55E", "Safe"
-    elif score >= 50:
-        colour, risk_label = "#FACC15", "Moderate"
-    elif score >= 25:
-        colour, risk_label = "#F97316", "Risky"
+    
+    is_low_data = (confidence.upper() == "LOW")
+    if is_low_data:
+        colour = "#9AA0A6"
+        risk_label = "Low data confidence"
+    elif score >= 80:
+        colour, risk_label = "#1B9E4B", "Very Safe"
+    elif score >= 60:
+        colour, risk_label = "#7ACB5A", "Safe"
+    elif score >= 40:
+        colour, risk_label = "#F5D33F", "Moderate"
+    elif score >= 20:
+        colour, risk_label = "#F28C28", "Risky"
     else:
-        colour, risk_label = "#EF4444", "Unsafe"
-        
-    if confidence.upper() == "LOW":
-        risk_label += " (Low data confidence)"
+        colour, risk_label = "#D62828", "Unsafe"
+
+    reasons = []
+    if lighting < 40:
+        reasons.append({"factor": "Street Lighting", "text": "Poor street lighting - low lamp density", "is_negative": True})
+    else:
+        reasons.append({"factor": "Street Lighting", "text": "Well-lit road segment", "is_negative": False})
+
+    if crowd < 40:
+        reasons.append({"factor": "Night Footfall", "text": "Low footfall, few open shops", "is_negative": True})
+    else:
+        reasons.append({"factor": "Night Footfall", "text": "Active foot traffic & open shops", "is_negative": False})
+
+    if crime < 40:
+        reasons.append({"factor": "Crime Safety", "text": "Elevated past incident reports", "is_negative": True})
+    else:
+        reasons.append({"factor": "Crime Safety", "text": "Low crime incident history", "is_negative": False})
+
+    reasons.sort(key=lambda r: not r["is_negative"])
 
     return {
         "safety_score": score,
         "risk_label":   risk_label,
         "colour":       colour,
         "confidence":   confidence,
+        "is_low_data":  is_low_data,
         "factors": {
             "lighting":      lighting,
             "crime_safety":  crime,
@@ -74,6 +97,7 @@ def _score_for_centroid(lat: float, lon: float) -> dict:
             "cctv_coverage": cctv,
             "safe_havens":   haven,
         },
+        "reasons":        reasons,
         "summary_badges": env.get("summary_badges", []),
         "last_updated": "Just now"
     }

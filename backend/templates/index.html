@@ -387,6 +387,7 @@
       text-align: center;
     }
   </style>
+<script src="/static/js/safetyColors.js"></script>
 </head>
 <body>
 
@@ -736,17 +737,19 @@
   <div class="map-container">
     <!-- Top Left Floating Map Controls -->
     <div class="floating-map-controls">
+
       <button class="nav-tab-btn map-style-btn" data-style="light" onclick="setMapStyle('light')" style="padding: 6px 10px; font-size: 11px;">☀️ Light</button>
       <button class="nav-tab-btn map-style-btn active" data-style="dark" onclick="setMapStyle('dark')" style="padding: 6px 10px; font-size: 11px;">🌙 Dark</button>
       <button class="nav-tab-btn map-style-btn" data-style="satellite" onclick="setMapStyle('satellite')" style="padding: 6px 10px; font-size: 11px;">🛰️ Satellite</button>
       <button class="nav-tab-btn map-style-btn" data-style="streets" onclick="setMapStyle('streets')" style="padding: 6px 10px; font-size: 11px;">🗺️ Streets</button>
-      <button class="nav-tab-btn" onclick="openVpsVisualViewModal()" style="padding: 6px 12px; font-size: 11px; color: var(--primary-light); background: rgba(59, 130, 246, 0.2); border: 1px solid var(--primary-light); border-radius: 8px;">👁️ Visual View (360°)</button>
+      <button class="nav-tab-btn" onclick="openVpsVisualViewModal()" style="padding: 6px 12px; font-size: 11px; color: var(--primary-light); background: rgba(59, 130, 246, 0.2); border: 1px solid var(--primary-light); border-radius: 8px;">📷 Visual View (360°)</button>
       <button id="safety-map-mode-btn" class="nav-tab-btn" onclick="safetyMap_toggle()" style="padding: 6px 12px; font-size: 11px; color: #A78BFA; background: rgba(167,139,250,0.15); border: 1px solid #A78BFA; border-radius: 8px;">🛡️ Safety Map</button>
-      <div class="nav-tab-btn" style="padding: 6px; font-size: 11px; background: rgba(30,41,59,0.9); border: 1px solid #334155; border-radius: 8px; display: flex; align-items: center; gap: 4px;">
-        <button id="sm-day-btn" onclick="safetyMap_setTime('day')" style="background:transparent;border:none;color:var(--text-muted);cursor:pointer;padding:2px 4px;">☀️</button>
+      <div class="nav-tab-btn" style="padding: 4px 8px; font-size: 11px; background: rgba(30,41,59,0.9); border: 1px solid #334155; border-radius: 8px; display: flex; align-items: center; gap: 6px;">
+        <button id="sm-day-btn" onclick="safetyMap_setTime('day')" style="background:transparent;border:none;color:#FACC15;cursor:pointer;padding:2px 4px;font-size:12px;">☀️ Day</button>
         <div style="width:1px;height:12px;background:#334155;"></div>
-        <button id="sm-night-btn" onclick="safetyMap_setTime('night')" style="background:transparent;border:none;color:var(--text-muted);cursor:pointer;padding:2px 4px;">🌙</button>
+        <button id="sm-night-btn" onclick="safetyMap_setTime('night')" style="background:transparent;border:none;color:var(--text-muted);cursor:pointer;padding:2px 4px;font-size:12px;">🌙 Night</button>
       </div>
+
     </div>
 
     <!-- Top Right Floating HUD -->
@@ -834,18 +837,26 @@
   <!-- ===== SAFETY MAP MODE OVERLAYS (NEW — do not remove existing code) ===== -->
 
   <!-- Safety Map Legend (bottom-left, visible only in Safety Map Mode) -->
-  <div id="safety-map-legend" style="display:none; position:fixed; bottom:28px; left:20px; z-index:1500; background:rgba(10,18,36,0.96); backdrop-filter:blur(14px); border:1.5px solid #334155; border-radius:14px; padding:12px 16px; min-width:190px; box-shadow:0 8px 32px rgba(0,0,0,0.6);">
-    <div style="font-size:11px; font-weight:800; color:#A78BFA; letter-spacing:0.8px; margin-bottom:8px;">🛡️ SAFETY MAP LEGEND</div>
-    <div style="display:flex; flex-direction:column; gap:5px; font-size:11.5px; color:#CBD5E1;">
-      <span><span style="display:inline-block;width:12px;height:12px;border-radius:50%;background:#22C55E;margin-right:7px;vertical-align:middle;"></span>🟢 Safe (75-100)</span>
-      <span><span style="display:inline-block;width:12px;height:12px;border-radius:50%;background:#FACC15;margin-right:7px;vertical-align:middle;"></span>🟡 Moderate (50-74)</span>
-      <span><span style="display:inline-block;width:12px;height:12px;border-radius:50%;background:#F97316;margin-right:7px;vertical-align:middle;"></span>🟠 Risky (25-49)</span>
-      <span><span style="display:inline-block;width:12px;height:12px;border-radius:50%;background:#EF4444;margin-right:7px;vertical-align:middle;"></span>🔴 Unsafe (&lt;25)</span>
+  
+  <div id="safety-map-legend" style="display:none; position:fixed; bottom:28px; left:20px; z-index:1500; background:rgba(10,18,36,0.96); backdrop-filter:blur(14px); border:1.5px solid #334155; border-radius:14px; padding:12px 16px; min-width:210px; box-shadow:0 8px 32px rgba(0,0,0,0.6);">
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+      <span style="font-size:11px; font-weight:800; color:#A78BFA; letter-spacing:0.8px;">🛡️ SAFETY MAP LEGEND</span>
+      <button onclick="document.getElementById('safety-map-legend').style.display='none'" style="background:none;border:none;color:#94A3B8;cursor:pointer;font-size:12px;">✕</button>
     </div>
-    <div style="margin-top:10px; font-size:10px; color:#64748B; border-top:1px solid #1E293B; padding-top:6px;">
-      Tap any circle on the map to view safety details
+    <div id="legend-swatches" style="display:flex; flex-direction:column; gap:5px; font-size:11.5px; color:#CBD5E1;">
+      <span><span style="display:inline-block;width:12px;height:12px;border-radius:50%;background:#1B9E4B;margin-right:7px;vertical-align:middle;"></span>🟢 80–100 Very Safe</span>
+      <span><span style="display:inline-block;width:12px;height:12px;border-radius:50%;background:#7ACB5A;margin-right:7px;vertical-align:middle;"></span>🟢 60–79 Safe</span>
+      <span><span style="display:inline-block;width:12px;height:12px;border-radius:50%;background:#F5D33F;margin-right:7px;vertical-align:middle;"></span>🟡 40–59 Moderate</span>
+      <span><span style="display:inline-block;width:12px;height:12px;border-radius:50%;background:#F28C28;margin-right:7px;vertical-align:middle;"></span>🟠 20–39 Risky</span>
+      <span><span style="display:inline-block;width:12px;height:12px;border-radius:50%;background:#D62828;margin-right:7px;vertical-align:middle;"></span>🔴 0–19 Unsafe</span>
+      <span><span style="display:inline-block;width:12px;height:12px;border-radius:50%;background:#9AA0A6;margin-right:7px;vertical-align:middle;"></span>⚪ No data (Dashed)</span>
+    </div>
+    <div style="margin-top:8px; display:flex; align-items:center; justify-content:space-between; font-size:10px; color:#94A3B8; border-top:1px solid #1E293B; padding-top:6px;">
+      <span>Colorblind Mode</span>
+      <input type="checkbox" id="colorblind-toggle" onchange="toggleColorblindMode(this.checked)" style="cursor:pointer;">
     </div>
   </div>
+
 
   <!-- Safety Map Segment Info Panel (bottom-center, shown when segment tapped) -->
   <div id="safety-map-panel" style="display:none; position:fixed; bottom:28px; left:50%; transform:translateX(-50%); z-index:1500; background:rgba(10,18,36,0.97); backdrop-filter:blur(16px); border:1.5px solid #334155; border-radius:18px; padding:16px 20px; min-width:320px; max-width:400px; box-shadow:0 12px 40px rgba(0,0,0,0.7);">
@@ -1718,10 +1729,12 @@
         , 0);
 
         const score = r.safety_score || 0;
-        let routeColor = '#EF4444'; // Unsafe
-        if (score >= 75) routeColor = '#22C55E'; // Safe
-        else if (score >= 50) routeColor = '#FACC15'; // Moderate
-        else if (score >= 25) routeColor = '#F97316'; // Risky
+        let routeColor = typeof getSafetyColorInfo === 'function' ? getSafetyColorInfo(score).hex : '#F5D33F';
+        if (score >= 80) routeColor = '#1B9E4B';
+        else if (score >= 60) routeColor = '#7ACB5A';
+        else if (score >= 40) routeColor = '#F5D33F';
+        else if (score >= 20) routeColor = '#F28C28';
+        else routeColor = '#D62828';
 
         const isSafest = (idx === safestIdx);
         const baseWeight = isSafest ? 7 : 4;
@@ -2404,123 +2417,150 @@
   }
 
   // ── Draw actual colored road polylines on the Leaflet map ─────────
+  
+  var safetyMap_selectedPolyline = null;
+  var isColorblindMode = false;
+
+  window.toggleColorblindMode = function(enabled) {
+    isColorblindMode = enabled;
+    if (typeof currentColorPalette !== 'undefined') {
+      currentColorPalette = enabled ? SAFETY_COLORS_COLORBLIND : SAFETY_COLORS_STANDARD;
+    }
+    // Update legend swatches
+    const container = document.getElementById('legend-swatches');
+    if (container) {
+      const p = currentColorPalette;
+      container.innerHTML = `
+        <span><span style="display:inline-block;width:12px;height:12px;border-radius:50%;background:${p.very_safe.hex};margin-right:7px;vertical-align:middle;"></span>🟢 80–100 Very Safe</span>
+        <span><span style="display:inline-block;width:12px;height:12px;border-radius:50%;background:${p.safe.hex};margin-right:7px;vertical-align:middle;"></span>🟢 60–79 Safe</span>
+        <span><span style="display:inline-block;width:12px;height:12px;border-radius:50%;background:${p.moderate.hex};margin-right:7px;vertical-align:middle;"></span>🟡 40–59 Moderate</span>
+        <span><span style="display:inline-block;width:12px;height:12px;border-radius:50%;background:${p.risky.hex};margin-right:7px;vertical-align:middle;"></span>🟠 20–39 Risky</span>
+        <span><span style="display:inline-block;width:12px;height:12px;border-radius:50%;background:${p.unsafe.hex};margin-right:7px;vertical-align:middle;"></span>🔴 0–19 Unsafe</span>
+        <span><span style="display:inline-block;width:12px;height:12px;border-radius:50%;background:${p.nodata.hex};margin-right:7px;vertical-align:middle;"></span>⚪ No data (Dashed)</span>
+      `;
+    }
+    if (safetyMap_active) safetyMap_loadBounds();
+  };
+
   function safetyMap_drawRoads(roads) {
     if (typeof map === 'undefined' || !map) return;
-
     var newGroup = L.layerGroup();
 
     roads.forEach(function(road) {
       if (!road.geometry || road.geometry.length < 2) return;
 
-      // Dark shadow outline for readability on all map styles
+      var isLowData = (road.confidence && road.confidence.toUpperCase() === 'LOW') || road.colour === '#9AA0A6';
+      var roadColor = road.colour;
+
+      if (isColorblindMode && typeof getSafetyColorInfo === 'function') {
+        roadColor = getSafetyColorInfo(road.safety_score, isLowData).hex;
+      }
+
+      var lineWeight = (road.highway === 'primary' || road.highway === 'trunk' || road.highway === 'motorway') ? 5 : 3;
+
+      // 1. Thin white casing underneath for visibility on any map tile
       L.polyline(road.geometry, {
-        color: '#000000',
-        weight: 9,
-        opacity: 0.18,
+        color: '#FFFFFF',
+        weight: lineWeight + 3,
+        opacity: 0.85,
         interactive: false
       }).addTo(newGroup);
 
-      // Main colored safety line
+      // 2. Main colored safety line
       var line = L.polyline(road.geometry, {
-        color:     road.colour,
-        weight:    5,
-        opacity:   0.88,
-        lineCap:  'round',
+        color: roadColor,
+        weight: lineWeight,
+        opacity: 0.95,
+        dashArray: isLowData ? '6, 6' : null,
+        lineCap: 'round',
         lineJoin: 'round',
         interactive: true
       });
 
-      // Each polyline gets its own click handler capturing THIS road's data
-      (function(r) {
-        line.on('click', function(e) {
+      line.on('mouseover', function() { line.setStyle({ weight: lineWeight + 3 }); });
+      line.on('mouseout', function() { if (safetyMap_selectedPolyline !== line) line.setStyle({ weight: lineWeight }); });
+
+      (function(r, poly) {
+        poly.on('click', function(e) {
           L.DomEvent.stopPropagation(e);
+          if (safetyMap_selectedPolyline) {
+            safetyMap_selectedPolyline.setStyle({ weight: 4, color: safetyMap_selectedPolyline._origColor });
+          }
+          safetyMap_selectedPolyline = poly;
+          poly._origColor = roadColor;
+          poly.setStyle({ weight: 8, color: '#FFFFFF' });
           safetyMap_openPanel(r);
         });
-        // Highlight on hover
-        line.on('mouseover', function() {
-          this.setStyle({ weight: 8, opacity: 1.0 });
-        });
-        line.on('mouseout', function() {
-          this.setStyle({ weight: 5, opacity: 0.88 });
-        });
-      })(road);
+      })(road, line);
 
       line.addTo(newGroup);
     });
 
-    // Swap: remove old layer, add new — no flicker
-    safetyMap_clearLayers();
+    if (safetyMap_layerGroup) map.removeLayer(safetyMap_layerGroup);
     safetyMap_layerGroup = newGroup;
-    safetyMap_layerGroup.addTo(map);
+    map.addLayer(safetyMap_layerGroup);
   }
 
-  // ── Remove all safety road layers from map ────────────────────────
-  function safetyMap_clearLayers() {
-    if (safetyMap_layerGroup && typeof map !== 'undefined') {
-      map.removeLayer(safetyMap_layerGroup);
-      safetyMap_layerGroup = null;
-    }
-  }
-
-  // ── Open road-specific safety panel ──────────────────────────────
   function safetyMap_openPanel(road) {
-    var panel = document.getElementById('safety-map-panel');
+    var panel   = document.getElementById('safety-info-panel');
+    var title   = document.getElementById('safety-info-title');
+    var score   = document.getElementById('safety-info-score');
+    var risk    = document.getElementById('safety-info-risk');
+    var conf    = document.getElementById('safety-info-confidence');
+    var details = document.getElementById('safety-info-details');
     if (!panel) return;
 
-    document.getElementById('smp-no-data').style.display = 'none';
-    document.getElementById('smp-factors').style.display = 'block';
+    var roadColor = road.colour;
+    if (isColorblindMode && typeof getSafetyColorInfo === 'function') {
+      roadColor = getSafetyColorInfo(road.safety_score, road.confidence === 'LOW').hex;
+    }
 
-    // Road name
-    var displayName = road.name || (road.highway
-      ? road.highway.replace(/_/g, ' ').replace(/\b\w/g, function(c){ return c.toUpperCase(); }) + ' Road'
-      : 'Road Segment');
-    document.getElementById('smp-title').textContent  = displayName;
-    document.getElementById('smp-title').style.color  = road.colour;
-    document.getElementById('smp-coords').textContent =
-      road.centroid ? (road.centroid.lat.toFixed(5) + ', ' + road.centroid.lon.toFixed(5)) : '';
+    title.textContent = road.name || (road.highway ? road.highway.toUpperCase() + ' Road' : 'Road Segment');
+    score.textContent = (road.safety_score !== undefined && road.safety_score !== null) ? road.safety_score + '/100' : 'N/A';
+    score.style.color = roadColor;
+    risk.textContent  = road.risk_label || 'Evaluated Segment';
+    conf.textContent  = (road.confidence || 'Medium') + ' Confidence';
 
-    // Score
-    var scoreEl = document.getElementById('smp-score');
-    scoreEl.textContent = (road.safety_score != null ? road.safety_score : '—') + '/100';
-    scoreEl.style.color = road.colour;
-
-    // Risk label
-    var riskEl = document.getElementById('smp-risk');
-    riskEl.textContent = road.risk_label || '—';
-    riskEl.style.color = road.colour;
-
-    // Confidence
-    document.getElementById('smp-confidence').textContent = road.confidence || 'MEDIUM';
-
-    // Factor bar chart
-    var f = road.factors || {};
-    var factorRows = [
-      ['💡', 'Lighting',      f.lighting],
-      ['🔒', 'Crime Safety',  f.crime_safety],
-      ['👥', 'Foot Traffic',  f.foot_traffic],
-      ['📷', 'CCTV',         f.cctv_coverage],
-      ['🏥', 'Safe Havens',   f.safe_havens]
-    ];
     var html = '';
-    factorRows.forEach(function(row) {
-      var val = row[2];
-      if (val === undefined || val === null) return;
-      var c = val >= 75 ? '#22C55E' : val >= 55 ? '#F59E0B' : '#EF4444';
-      html +=
-        '<div style="display:flex;align-items:center;gap:6px;margin-bottom:4px;">' +
-          '<span style="width:108px;flex-shrink:0;font-size:10.5px;">' + row[0] + ' ' + row[1] + '</span>' +
-          '<div style="flex:1;background:#1E293B;border-radius:4px;height:6px;">' +
-            '<div style="width:' + Math.min(100, Math.max(0, val)) + '%;height:6px;border-radius:4px;background:' + c + ';transition:width 0.3s;"></div>' +
-          '</div>' +
-          '<span style="color:' + c + ';font-weight:800;width:30px;text-align:right;font-size:11px;">' + Math.round(val) + '</span>' +
-        '</div>';
-    });
-    document.getElementById('smp-factors').innerHTML = html;
+    
+    // Plain-language reasons section ("Why this score")
+    html += '<div style="margin-top:12px; padding-top:10px; border-top:1px solid #334155;">';
+    html += '<div style="font-size:11px; font-weight:700; color:#A78BFA; margin-bottom:8px;">💡 WHY THIS SCORE:</div>';
+    
+    if (road.reasons && road.reasons.length > 0) {
+      road.reasons.forEach(function(r) {
+        var badgeColor = r.is_negative ? '#EF4444' : '#22C55E';
+        var icon = r.is_negative ? '⚠️' : '✅';
+        html += '<div style="display:flex; align-items:flex-start; gap:6px; margin-bottom:6px; font-size:11px; color:#E2E8F0;">';
+        html += '<span>' + icon + '</span>';
+        html += '<div><b style="color:' + badgeColor + ';">' + r.factor + ':</b> ' + r.text + '</div>';
+        html += '</div>';
+      });
+    } else if (road.factors) {
+      html += '<div style="font-size:11px; color:#CBD5E1;">';
+      html += '<div>💡 Lighting: ' + (road.factors.lighting || 'N/A') + '/100</div>';
+      html += '<div>🛡️ Crime Safety: ' + (road.factors.crime_safety || 'N/A') + '/100</div>';
+      html += '<div>👥 Night Footfall: ' + (road.factors.foot_traffic || 'N/A') + '/100</div>';
+      html += '<div>📷 CCTV Coverage: ' + (road.factors.cctv_coverage || 'N/A') + '/100</div>';
+      html += '</div>';
+    }
 
+    html += '</div>';
+
+    // Action buttons
+    var rName = (road.name || 'Selected Location').replace(/'/g, "\'");
+    html += `
+      <div style="margin-top: 14px; display: flex; flex-direction: column; gap: 6px;">
+        <button onclick="document.getElementById('origin-input').value='${rName}'; switchSection('sec-search');" style="width:100%; padding:8px; background:rgba(59,130,246,0.2); color:#60A5FA; border:1px solid #3B82F6; border-radius:6px; font-size:11px; font-weight:600; cursor:pointer;">📍 Set as Source</button>
+        <button onclick="document.getElementById('dest-input').value='${rName}'; switchSection('sec-search');" style="width:100%; padding:8px; background:rgba(16,185,129,0.2); color:#34D399; border:1px solid #10B981; border-radius:6px; font-size:11px; font-weight:600; cursor:pointer;">🏁 Set as Destination</button>
+        <button onclick="switchSection('sec-feedback');" style="width:100%; padding:8px; background:rgba(239,68,68,0.1); color:#F87171; border:1px dashed #EF4444; border-radius:6px; font-size:11px; font-weight:600; cursor:pointer;">⚠️ Report an Issue</button>
+      </div>
+    `;
+
+    details.innerHTML = html;
     panel.style.display = 'block';
   }
 
-  // ── Close panel ───────────────────────────────────────────────────
   function safetyMap_closePanel() {
     var p = document.getElementById('safety-map-panel');
     if (p) p.style.display = 'none';
