@@ -20,8 +20,5 @@ COVERAGE_AREAS = [
     }
 ]
 
-# Update interval for background precomputation job in seconds (10 minutes)
 PRECOMPUTE_INTERVAL_SEC = 600
-
-# Scoring default parameters
 DEFAULT_VEHICLE_MODE = "walking"

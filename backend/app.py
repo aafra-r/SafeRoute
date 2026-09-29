@@ -80,7 +80,7 @@ def create_app(config_class=Config):
     # PHASE 4: Background Pre-computation Job
     def background_precompute():
         import time, requests
-        from backend.config.safety_map_config import COVERAGE_AREAS, PRECOMPUTE_INTERVAL_SEC
+        from backend.config_safety_map import COVERAGE_AREAS, PRECOMPUTE_INTERVAL_SEC
         while True:
             try:
                 print("[Background Job] Refreshing Predefined Safety Scores for all Configured Areas...")

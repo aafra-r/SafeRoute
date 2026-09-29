@@ -7,7 +7,7 @@ Usage:
 import sys
 import time
 import requests
-from backend.config.safety_map_config import COVERAGE_AREAS
+from backend.config_safety_map import COVERAGE_AREAS
 
 BASE_URL = "http://127.0.0.1:5000"
 
