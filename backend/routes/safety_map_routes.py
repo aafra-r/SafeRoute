@@ -41,15 +41,13 @@ _HIGHWAY_TYPES = (
 
 # ── Core scoring ─────────────────────────────────────────────────────────────
 
-def _score_for_centroid(lat: float, lon: float) -> dict:
+def _score_for_centroid(lat: float, lon: float, time_val: str = None) -> dict:
     """
     Score a lat/lon using the EXISTING SafetyScoringEngine + EnvironmentalService.
-    Results are cached at 2-decimal (≈1.1km) precision for 5 minutes to prevent
-    spamming the backend for nearby roads.
+    Results are cached at 2-decimal (≈1.1km) precision for 5 minutes.
     """
-    # Round to 2 decimals (approx 1.1km) to group nearby roads into the same score lookup
     lookup_lat, lookup_lon = round(lat, 2), round(lon, 2)
-    cache_key = (lookup_lat, lookup_lon)
+    cache_key = (lookup_lat, lookup_lon, time_val)
     now = _time.time()
     
     if cache_key in _SCORE_CACHE:
@@ -57,27 +55,34 @@ def _score_for_centroid(lat: float, lon: float) -> dict:
         if now - e["ts"] < _CACHE_TTL:
             return e["data"]
 
-    # Call the existing environmental pipeline with a single-point corridor
     coords = [{"latitude": lookup_lat, "longitude": lookup_lon}]
+    
+    # Handle Day/Night toggle
+    departure_time = None
+    if time_val == 'night':
+        from datetime import datetime
+        departure_time = datetime.now().replace(hour=2, minute=0, second=0).isoformat()
+    elif time_val == 'day':
+        from datetime import datetime
+        departure_time = datetime.now().replace(hour=14, minute=0, second=0).isoformat()
+
     try:
         env = EnvironmentalService.evaluate_corridor_signals(
             coordinates=coords,
             vehicle="walking",
-            departure_time=None,
+            departure_time=departure_time,
             corridor_name="SafetyMap"
         )
     except Exception as exc:
         print(f"[SafetyMap] EnvironmentalService error at ({lookup_lat},{lookup_lon}): {exc}")
         env = EnvironmentalService._get_default_signals()
 
-    # Extract factor scores from env signals
     lighting = env.get("streetlights",  {}).get("score", 65)
     crime    = env.get("crime_safety",   {}).get("score", 80)
     crowd    = env.get("crowded_area",   {}).get("score", 70)
     cctv     = env.get("cctv_coverage",  {}).get("score", 70)
     haven    = env.get("nearby_havens",  {}).get("score", 75)
 
-    # Run existing XGBoost safety scoring engine
     try:
         result = _scoring_engine.calculate_score(
             lighting=float(lighting),
@@ -88,23 +93,26 @@ def _score_for_centroid(lat: float, lon: float) -> dict:
         )
     except Exception as exc:
         print(f"[SafetyMap] ScoringEngine error: {exc}")
-        result = {"safety_score": 70, "safety_level": "MEDIUM", "confidence_level": "LOW"}
+        result = {"safety_score": 70, "safety_level": "Moderate", "confidence_level": "LOW"}
 
     score      = result.get("safety_score", 70)
-    level      = result.get("safety_level", "MEDIUM")
-    confidence = result.get("confidence_level", "MEDIUM")
+    confidence = result.get("confidence_level", "Medium")
 
-    # Colour thresholds (consistent with existing app thresholds)
+    # 4-tier Colour thresholds: Green (75-100), Yellow (50-74), Orange (25-49), Red (0-24)
     if score >= 75:
-        colour, risk_label = "#22C55E", "Lower Risk"
-    elif score >= 55:
-        colour, risk_label = "#F59E0B", "Moderate Risk"
+        colour, risk_label = "#22C55E", "Safe"
+    elif score >= 50:
+        colour, risk_label = "#FACC15", "Moderate"
+    elif score >= 25:
+        colour, risk_label = "#F97316", "Risky"
     else:
-        colour, risk_label = "#EF4444", "Higher Risk"
+        colour, risk_label = "#EF4444", "Unsafe"
+
+    if confidence.upper() == "LOW":
+        risk_label += " (Low data confidence)"
 
     data = {
         "safety_score": score,
-        "safety_level": level,
         "risk_label":   risk_label,
         "colour":       colour,
         "confidence":   confidence,
@@ -296,12 +304,13 @@ def get_safety_roads():
         _ROAD_CACHE[cache_key] = {"ways": ways, "ts": now}
     
     ways = _ROAD_CACHE[cache_key]["ways"]
+    time_val = request.args.get('time', None)
 
     # Step 2: Score each road via existing safety pipeline
     features = []
     for way in ways:
         c_lat, c_lon = _centroid_of(way["geometry"])
-        seg = _score_for_centroid(c_lat, c_lon)
+        seg = _score_for_centroid(c_lat, c_lon, time_val=time_val)
 
         display_name = way["name"] or (
             way["highway"].replace("_", " ").title() + " Road"

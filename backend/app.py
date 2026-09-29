@@ -24,6 +24,7 @@ from backend.routes.feedback_routes import feedback_bp
 from backend.routes.track_routes import track_bp
 from backend.routes.vps_routes import vps_bp
 from backend.routes.safety_map_routes import safety_map_bp
+from backend.routes.safety_insights_routes import safety_insights_bp
 
 def create_app(config_class=Config):
     app = Flask(__name__, template_folder='templates', static_folder='static')
@@ -53,6 +54,7 @@ def create_app(config_class=Config):
     app.register_blueprint(track_bp)
     app.register_blueprint(vps_bp)
     app.register_blueprint(safety_map_bp)
+    app.register_blueprint(safety_insights_bp)
     # Root Web Route: Real-Time Mobile & Web Application
     @app.route('/')
     def index():
@@ -74,6 +76,24 @@ def create_app(config_class=Config):
     with app.app_context():
         db.create_all()
         seed_database()
+
+    # PHASE 4: Background Pre-computation Job
+    def background_precompute():
+        import time, requests
+        while True:
+            try:
+                # Pre-warm the cache for the default bounding box (Trichy/Chennai)
+                print("[Background Job] Refreshing Predefined Safety Scores...")
+                # Simulate warming cache via internal API call
+                requests.get('http://127.0.0.1:5000/api/safety-map/roads?s=10.78&w=78.69&n=10.80&e=78.71&time=day', timeout=10)
+                requests.get('http://127.0.0.1:5000/api/safety-map/roads?s=10.78&w=78.69&n=10.80&e=78.71&time=night', timeout=10)
+            except Exception as e:
+                pass
+            time.sleep(600)  # Refresh every 10 minutes
+
+    import threading
+    t = threading.Thread(target=background_precompute, daemon=True)
+    t.start()
 
     return app
 

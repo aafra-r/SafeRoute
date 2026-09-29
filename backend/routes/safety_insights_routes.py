@@ -49,18 +49,24 @@ def _score_for_centroid(lat: float, lon: float) -> dict:
         result = {"safety_score": 70, "safety_level": "MEDIUM", "confidence_level": "LOW"}
 
     score = result.get("safety_score", 70)
+    confidence = result.get("confidence_level", "Medium")
     if score >= 75:
-        colour, risk_label = "#22C55E", "Lower Risk"
-    elif score >= 55:
-        colour, risk_label = "#F59E0B", "Moderate Risk"
+        colour, risk_label = "#22C55E", "Safe"
+    elif score >= 50:
+        colour, risk_label = "#FACC15", "Moderate"
+    elif score >= 25:
+        colour, risk_label = "#F97316", "Risky"
     else:
-        colour, risk_label = "#EF4444", "Higher Risk"
+        colour, risk_label = "#EF4444", "Unsafe"
+        
+    if confidence.upper() == "LOW":
+        risk_label += " (Low data confidence)"
 
     return {
         "safety_score": score,
         "risk_label":   risk_label,
         "colour":       colour,
-        "confidence":   result.get("confidence_level", "MEDIUM"),
+        "confidence":   confidence,
         "factors": {
             "lighting":      lighting,
             "crime_safety":  crime,
