@@ -80,16 +80,18 @@ def create_app(config_class=Config):
     # PHASE 4: Background Pre-computation Job
     def background_precompute():
         import time, requests
+        from backend.config.safety_map_config import COVERAGE_AREAS, PRECOMPUTE_INTERVAL_SEC
         while True:
             try:
-                # Pre-warm the cache for the default bounding box (Trichy/Chennai)
-                print("[Background Job] Refreshing Predefined Safety Scores...")
-                # Simulate warming cache via internal API call
-                requests.get('http://127.0.0.1:5000/api/safety-map/roads?s=10.78&w=78.69&n=10.80&e=78.71&time=day', timeout=10)
-                requests.get('http://127.0.0.1:5000/api/safety-map/roads?s=10.78&w=78.69&n=10.80&e=78.71&time=night', timeout=10)
+                print("[Background Job] Refreshing Predefined Safety Scores for all Configured Areas...")
+                for area in COVERAGE_AREAS:
+                    bbox = area["bbox"]
+                    bbox_str = f"{bbox[0]},{bbox[1]},{bbox[2]},{bbox[3]}"
+                    requests.get(f'http://127.0.0.1:5000/api/safety-map/segments?bbox={bbox_str}&time=day', timeout=10)
+                    requests.get(f'http://127.0.0.1:5000/api/safety-map/segments?bbox={bbox_str}&time=night', timeout=10)
             except Exception as e:
                 pass
-            time.sleep(600)  # Refresh every 10 minutes
+            time.sleep(PRECOMPUTE_INTERVAL_SEC)  # Refresh every 10 minutes
 
     import threading
     t = threading.Thread(target=background_precompute, daemon=True)
