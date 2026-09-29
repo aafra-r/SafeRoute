@@ -2262,7 +2262,7 @@
 
   var safetyMap_active     = false;
   var safetyMap_timeOfDay  = "day";
-  window.safetyMap_setTime = function(t) { safetyMap_timeOfDay = t; document.getElementById("sm-day-btn").style.color = (t==="day")?"#FACC15":"var(--text-muted)"; document.getElementById("sm-night-btn").style.color = (t==="night")?"#A78BFA":"var(--text-muted)"; if(safetyMap_active){ safetyMap_load(safetyMap_lastLat, safetyMap_lastLon); loadSafetyInsights(); } };
+  window.safetyMap_setTime = function(t) { safetyMap_timeOfDay = t; document.getElementById("sm-day-btn").style.color = (t==="day")?"#FACC15":"var(--text-muted)"; document.getElementById("sm-night-btn").style.color = (t==="night")?"#A78BFA":"var(--text-muted)"; if(safetyMap_active){ safetyMap_loadBounds(); loadSafetyInsights(); } };
   setTimeout(()=>window.safetyMap_setTime("day"),500);
   var safetyMap_layerGroup = null;   // Leaflet LayerGroup holding all road polylines
   var safetyMap_panTimer   = null;   // debounce timer for map pan/zoom
